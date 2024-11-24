@@ -1,8 +1,7 @@
 [tool.poetry]
 name = "pynbntnmodem"
-version = "0.1.0"
+version = "0.2.0"
 description = "Library for interfacing to Narrowband Non-Terrestrial Network modems using AT commands."
-packages = [ {include = "nbntn" }]
 authors = ["geoffbrucepayne <geoff.bruce-payne@inmarsat.com>"]
 license = "Apache2.0"
 readme = "README.md"
