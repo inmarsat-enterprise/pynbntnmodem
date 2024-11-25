@@ -11,7 +11,6 @@ from pyatcommand import AtClient, AtErrorCode
 from pyatcommand.utils import dprint
 
 from .constants import (
-    # ChipsetManufacturer,
     Chipset,
     ModuleManufacturer,
     ModuleModel,
@@ -19,7 +18,6 @@ from .constants import (
     RegistrationState,
     NtnOpMode,
     GnssFixType,
-    # TransportType,
     UrcType,
     TauMultiplier,
     ActMultiplier,

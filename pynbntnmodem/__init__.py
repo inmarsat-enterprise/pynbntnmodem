@@ -1,23 +1,29 @@
 """Classes and methods for interfacing to a NB-NTN modem."""
 
-from .modem import (
+from .constants import (
     Chipset,
+    ChipsetManufacturer,
+    ModuleManufacturer,
     ModuleModel,
+    NtnOpMode,
+    RegistrationState,
+    TransportType,
+    UrcType,
+)
+from .modem import (
     NbntnModem,
     NtnLocation,
-    NtnOpMode,
     PdpContext,
     PdpType,
     RegInfo,
-    RegistrationState,
     SigInfo,
-    TransportType,
-    UrcType,
     get_model,
 )
 
 __all__ = [
     "Chipset",
+    "ChipsetManufacturer",
+    "ModuleManufacturer",
     "ModuleModel",
     "NbntnModem",
     "NtnLocation",
