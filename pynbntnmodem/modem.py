@@ -1,7 +1,7 @@
-"""Abstraction of the modem interface
-"""
+"""Abstraction of the modem interface."""
 
 import logging
+import os
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -10,8 +10,35 @@ from typing import Optional
 from pyatcommand import AtClient, AtErrorCode
 from pyatcommand.utils import dprint
 
-from .constants import *
+from .constants import (
+    # ChipsetManufacturer,
+    Chipset,
+    ModuleManufacturer,
+    ModuleModel,
+    PdpType,
+    RegistrationState,
+    NtnOpMode,
+    GnssFixType,
+    # TransportType,
+    UrcType,
+    TauMultiplier,
+    ActMultiplier,
+    EdrxCycle,
+    EdrxPtw,
+)
 from .ntninit import generic
+
+__all__ = [
+    'NtnLocation',
+    'RegInfo',
+    'SigInfo',
+    'PdpContext',
+    'PsmConfig',
+    'EdrxConfig',
+    'SocketStatus',
+    'MtMessage',
+    'NbntnModem',
+]
 
 _log = logging.getLogger(__name__)
 
@@ -244,36 +271,45 @@ class MtMessage:
     src_port: Optional[int] = None
 
 
-class Module:
-    """Abstraction for a NB-NTN modem"""
+class NbntnModem:
+    """Abstraction for a NB-NTN modem."""
     _manufacturer: ModuleManufacturer = ModuleManufacturer.UNKNOWN
     _model: ModuleModel = ModuleModel.UNKNOWN
     _chipset: Chipset = Chipset.UNKNOWN
 
-    def __init__(self, serial: AtClient, **kwargs) -> None:
+    def __init__(self, **kwargs) -> None:
         """Instantiate a modem interface.
         
         Args:
-            serial (AtClient): The AT client serial connection
+            **client (AtClient): The AT client serial connection
             **pdp_type (PdpType): Optional PDP context type, default `NON_IP`
             **apn (str): Optional APN
             **udp_server (str): Optional IP or URL of the server if using UDP
             **udp_port (int): Optional destination port of the server if using UDP
         """
         self._version: str = ''
-        self._serial = serial
-        self._pdp_type: PdpType = PdpType.NON_IP
-        if isinstance(kwargs.get('pdp_type'), PdpType):
-            self._pdp_type = kwargs.get('pdp_type')
+        self._serial_port = kwargs.get('port', os.getenv('SERIAL_PORT',
+                                                         '/dev/ttyUSB0'))
+        self._baudrate = kwargs.get('baudrate', int(os.getenv('SERIAL_BAUDRATE',
+                                                              115200)))
+        self._serial: AtClient = kwargs.get('client', AtClient())
+        if not isinstance(self._serial, AtClient):
+            raise ValueError('Invalid AtClient')
+        self._pdp_type: PdpType = kwargs.get('pdp_type', PdpType.NON_IP)
+        if not isinstance(self._pdp_type, PdpType):
+            raise ValueError('Invalid PdpType')
         self._apn: str = kwargs.get('apn', '')
         self._udp_server: str = kwargs.get('udp_server', '')
         self._udp_server_port: int = kwargs.get('udp_port', 0)
-        self._uplink_id: 'int|None' = None
-        self._udp_listening: bool = False
     
-    def connect(self) -> None:
+    def connect(self, **kwargs) -> None:
         """Connect to the modem UART/serial"""
-        self._serial.connect()
+        if 'port' not in kwargs:
+            kwargs['port'] = self._serial_port
+        if 'baudrate' not in kwargs:
+            kwargs['baudrate'] = self._baudrate
+        self._serial.connect(**kwargs)
+        self._baudrate = self._serial.baudrate
 
     def is_connected(self) -> bool:
         """Check if the modem UART/serial is connected"""
@@ -284,10 +320,6 @@ class Module:
         self._serial.disconnect()
         self._version = ''
 
-    def await_boot(self, timeout: float = 10) -> bool:
-        """Wait for the modem's boot string output."""
-        raise NotImplementedError('Requires module-specfic subclass')
-    
     def send_command(self, at_command: str, timeout: float = 1) -> AtErrorCode:
         """Send an arbitrary AT command and get the result code."""
         return self._serial.send_at_command(at_command, timeout)

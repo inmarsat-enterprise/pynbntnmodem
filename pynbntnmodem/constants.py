@@ -1,5 +1,5 @@
-"""Enumerated types for abstraction of commonly used values.
-"""
+"""Enumerated types for abstraction of commonly used values."""
+
 from enum import IntEnum
 
 

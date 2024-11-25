@@ -26,12 +26,6 @@ from pyatcommand import AtErrorCode
 
 generic = [
     {
-        'cmd': 'AT',
-        'res': AtErrorCode.OK,
-        'retry': { 'count': 10, 'delay': 1 },
-        'why': 'establish initial communication'
-    },
-    {
         'cmd': 'AT+CFUN=0',
         'res': AtErrorCode.OK,
         'timeout': 5,
