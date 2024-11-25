@@ -134,17 +134,18 @@ testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
 name = "pyatcommand"
-version = "0.1.5"
+version = "0.2.0"
 description = "An interface for V.25 Hayes AT commands"
 optional = false
 python-versions = "<4.0,>=3.9"
 files = [
-    {file = "pyatcommand-0.1.5-py3-none-any.whl", hash = "sha256:aa60066b8b34cca56a34745805b452955eded19f9f5288d56d1912050c0c4b07"},
-    {file = "pyatcommand-0.1.5.tar.gz", hash = "sha256:27ef9b072efe06a8a504e9eb7d2c1eaec4f1c904473e6eaccdc2a39b6c00dd24"},
+    {file = "pyatcommand-0.2.0-py3-none-any.whl", hash = "sha256:ba990840216cd46fb43f515571ea174eb86eb380634e84667dfbfe7ace5c3705"},
+    {file = "pyatcommand-0.2.0.tar.gz", hash = "sha256:2f04376b1e7784c1bddace4b59ab40e25995643989abd020838a5e90e112ede1"},
 ]
 
 [package.dependencies]
 pyserial = ">=3.5,<4.0"
+python-dotenv = ">=1.0.1,<2.0.0"
 
 [[package]]
 name = "pylint"
@@ -212,6 +213,20 @@ tomli = {version = ">=1", markers = "python_version < \"3.11\""}
 dev = ["argcomplete", "attrs (>=19.2)", "hypothesis (>=3.56)", "mock", "pygments (>=2.7.2)", "requests", "setuptools", "xmlschema"]
 
 [[package]]
+name = "python-dotenv"
+version = "1.0.1"
+description = "Read key-value pairs from a .env file and set them as environment variables"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "python-dotenv-1.0.1.tar.gz", hash = "sha256:e324ee90a023d808f1959c46bcbc04446a10ced277783dc6ee09987c37ec10ca"},
+    {file = "python_dotenv-1.0.1-py3-none-any.whl", hash = "sha256:f7b63ef50f1b690dddf550d03497b66d609393b40b564ed0d674909a68ebf16a"},
+]
+
+[package.extras]
+cli = ["click (>=5.0)"]
+
+[[package]]
 name = "tomli"
 version = "2.1.0"
 description = "A lil' TOML parser"
@@ -247,4 +262,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "f833d36ea774cdc8cbbe6daa1f77f3c93ac40ce4cdf0358853b3eefd50df4917"
+content-hash = "892b29f1e19765630817c219228146aac9c80a933e559bf20030fc9dc1dc5a42"
