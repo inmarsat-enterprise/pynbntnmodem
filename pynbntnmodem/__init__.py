@@ -3,6 +3,7 @@
 from .constants import (
     Chipset,
     ChipsetManufacturer,
+    GnssFixType,
     ModuleManufacturer,
     ModuleModel,
     NtnOpMode,
@@ -11,20 +12,24 @@ from .constants import (
     UrcType,
 )
 from .modem import (
+    MtMessage,
     NbntnModem,
     NtnLocation,
     PdpContext,
     PdpType,
     RegInfo,
     SigInfo,
+    SocketStatus,
     get_model,
 )
 
 __all__ = [
     "Chipset",
     "ChipsetManufacturer",
+    "GnssFixType",
     "ModuleManufacturer",
     "ModuleModel",
+    "MtMessage",
     "NbntnModem",
     "NtnLocation",
     "NtnOpMode",
@@ -33,6 +38,7 @@ __all__ = [
     "RegInfo",
     "RegistrationState",
     "SigInfo",
+    "SocketStatus",
     "TransportType",
     "UrcType",
     "get_model",
