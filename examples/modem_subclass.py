@@ -73,8 +73,8 @@ ntn_init = [
 ]
 
 class AltairNbModem(NbntnModem):
-    """Class representing Murata Type1-SC module.
-    """
+    """Class representing Murata Type1-SC module."""
+    
     _chipset = Chipset.ALT1250
 
     def __init__(self, serial: AtClient, **kwargs) -> None:
