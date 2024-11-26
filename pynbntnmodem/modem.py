@@ -891,7 +891,7 @@ class NbntnModem:
     
     def get_signal_quality(self) -> SignalQuality:
         """Get a qualitative indicator of 0..5 of satellite signal."""
-        sinr = self.get_siginfo()
+        sinr = self.get_siginfo().sinr
         if sinr >= SignalLevel.INVALID.value:
             return SignalQuality.WARNING
         if sinr >= SignalLevel.BARS_5.value:
