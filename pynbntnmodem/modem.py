@@ -1,7 +1,9 @@
 """Abstraction of the modem interface."""
 
+import ipaddress
 import logging
 import os
+import re
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -277,7 +279,8 @@ class NbntnModem:
     _manufacturer: ModuleManufacturer = ModuleManufacturer.UNKNOWN
     _model: ModuleModel = ModuleModel.UNKNOWN
     _chipset: Chipset = Chipset.UNKNOWN
-    _ntn_only: False
+    _ignss: bool = False
+    _ntn_only: bool = False
 
     def __init__(self, **kwargs) -> None:
         """Instantiate a modem interface.
@@ -300,9 +303,12 @@ class NbntnModem:
         self._pdp_type: PdpType = kwargs.get('pdp_type', PdpType.NON_IP)
         if not isinstance(self._pdp_type, PdpType):
             raise ValueError('Invalid PdpType')
-        self._apn: str = kwargs.get('apn', '')
-        self._udp_server: str = kwargs.get('udp_server', '')
-        self._udp_server_port: int = kwargs.get('udp_port', 0)
+        self._apn: str = ''
+        self.apn = kwargs.get('apn', '')
+        self._udp_server: str = ''
+        self.udp_server = kwargs.get('udp_server', '')
+        self._udp_server_port: int = 0
+        self.udp_server_port = kwargs.get('udp_port', 0)
     
     def connect(self, **kwargs) -> None:
         """Connect to the modem UART/serial"""
@@ -391,9 +397,23 @@ class NbntnModem:
         return self._version
     
     @property
+    def has_ignss(self) -> bool:
+        return self._ignss
+    
+    @property
     def ntn_only(self) -> bool:
         return self._ntn_only
     
+    @property
+    def pdp_type(self) -> PdpType:
+        return self._pdp_type
+    
+    @pdp_type.setter
+    def pdp_type(self, pdp_type: PdpType):
+        if not isinstance(pdp_type, PdpType):
+            raise ValueError('Invalid PDP Type')
+        self._pdp_type = pdp_type
+
     @property
     def ip_address(self) -> str:
         ip_address = ''
@@ -407,6 +427,38 @@ class NbntnModem:
                     ip_address = param
         return ip_address
 
+    @property
+    def apn(self) -> str:
+        return self._apn
+    
+    @apn.setter
+    def apn(self, name: str):
+        if not isinstance(name, str):
+            raise ValueError('Invalid APN')
+        self._apn = name
+    
+    @property
+    def udp_server(self) -> str:
+        return self._udp_server
+    
+    @udp_server.setter
+    def udp_server(self, server: str):
+        if (not server or
+            (not is_valid_ip(server) and not is_valid_hostname(server))):
+            _log.error('Invalid server IP or DNS')
+            return
+        self._udp_server = server
+    
+    @property
+    def udp_server_port(self) -> int:
+        return self._udp_server_port
+    
+    @udp_server_port.setter
+    def udp_server_port(self, port: int):
+        if not isinstance(port, int) or port not in range(0, 65536):
+            raise ValueError('Invalid UDP port')
+        self._udp_server_port = port
+    
     def is_asleep(self) -> bool:
         """Check if the modem is in deep sleep state."""
         raise NotImplementedError('Requires module-specific subclass')
@@ -925,3 +977,22 @@ def get_model(serial: AtClient) -> ModuleModel:
         _log.warning('Unsupported model: %s', res)
         return ModuleModel.UNKNOWN
     raise OSError('Unable to get modem information')
+
+
+def is_valid_hostname(hostname) -> bool:
+    """Validates a FQDN hostname"""
+    if len(hostname) > 255:
+        return False
+    if hostname[-1] == '.':
+        hostname = hostname[:-1]
+    allowed = re.compile('(?!-)[A-Z\d-]{1,63}(?<!-)$', re.IGNORECASE)
+    return all(allowed.match(x) for x in hostname.split('.'))
+
+
+def is_valid_ip(addr: str) -> bool:
+    """Validates an IP address string."""
+    try:
+        ipaddress.ip_address(addr)
+        return True
+    except ValueError:
+        return False
