@@ -108,7 +108,7 @@ class PsmConfig:
     tau_t3412_bitmask: str = ''   # TAU timer - when the modem updates its location
     act_t3324_bitmask: str = ''   # Activity timer - how long the modem stays awake after TAU
     
-    @classmethod
+    @staticmethod
     def tau_seconds(bitmask: str) -> int:
         """Convert a TAU bitmask to seconds."""
         if not bitmask:
@@ -124,7 +124,7 @@ class PsmConfig:
             return bct * int(multiplier) * 60
         return bct * int(multiplier)
     
-    @classmethod
+    @staticmethod
     def seconds_to_tau(seconds: int) -> str:
         """Convert an integer value to a TAU bitmask."""
         if not isinstance(seconds, int) or seconds == 0:
@@ -145,7 +145,7 @@ class PsmConfig:
             tvu = TauMultiplier.H_320.value << 5
         return f'{(tvu & bct):08b}'
     
-    @classmethod
+    @staticmethod
     def act_seconds(bitmask: str) -> int:
         """Convert the bitmask to Active PSM seconds."""
         if not bitmask:
@@ -161,7 +161,7 @@ class PsmConfig:
             return bct * int(multiplier) * 60
         return bct * int(multiplier)
     
-    @classmethod
+    @staticmethod
     def seconds_to_act(seconds: int) -> str:
         """Convert active time seconds to the ACT bitmask."""
         if not isinstance(seconds, int) or seconds == 0:
@@ -199,7 +199,7 @@ class EdrxConfig:
     cycle_bitmask: str = ''
     ptw_bitmask: str = ''
 
-    @classmethod
+    @staticmethod
     def edrx_cycle_seconds(bitmask: str) -> int:
         """Calculate the eDRX cycle time from the bitmask."""
         try:
@@ -210,7 +210,7 @@ class EdrxConfig:
         except ValueError:
             return 0
     
-    @classmethod
+    @staticmethod
     def seconds_to_edrx_cycle(seconds: 'int|float') -> str:
         """Convert nearest seconds to eDRX cycle bitmask"""
         MAX_EDRX_CYCLE = 10485
@@ -222,7 +222,7 @@ class EdrxConfig:
                 return f'{EdrxCycle(i).value:04b}'
         return f'{EdrxCycle.S_10485.value:04b}'
     
-    @classmethod
+    @staticmethod
     def edrx_ptw_seconds(bitmask: str) -> int:
         """Calculate the eDRX cycle time from the bitmask."""
         try:
@@ -233,7 +233,7 @@ class EdrxConfig:
         except ValueError:
             return 0
     
-    @classmethod
+    @staticmethod
     def seconds_to_edrx_ptw(seconds: 'int|float') -> str:
         """Convert seconds to Paging Time Window bitmask"""
         MAX_PTW = 40
