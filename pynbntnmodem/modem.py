@@ -23,6 +23,8 @@ from .constants import (
     ActMultiplier,
     EdrxCycle,
     EdrxPtw,
+    SignalLevel,
+    SignalQuality,
 )
 from .ntninit import generic
 
@@ -271,9 +273,11 @@ class MtMessage:
 
 class NbntnModem:
     """Abstraction for a NB-NTN modem."""
+
     _manufacturer: ModuleManufacturer = ModuleManufacturer.UNKNOWN
     _model: ModuleModel = ModuleModel.UNKNOWN
     _chipset: Chipset = Chipset.UNKNOWN
+    _ntn_only: False
 
     def __init__(self, **kwargs) -> None:
         """Instantiate a modem interface.
@@ -387,6 +391,10 @@ class NbntnModem:
         return self._version
     
     @property
+    def ntn_only(self) -> bool:
+        return self._ntn_only
+    
+    @property
     def ip_address(self) -> str:
         ip_address = ''
         if self.send_command('AT+CGDCONT?') == AtErrorCode.OK:
@@ -399,6 +407,10 @@ class NbntnModem:
                     ip_address = param
         return ip_address
 
+    def is_asleep(self) -> bool:
+        """Check if the modem is in deep sleep state."""
+        raise NotImplementedError('Requires module-specific subclass')
+    
     def get_imsi(self) -> 'str':
         """Get the IMSI of the SIM installed with the modem."""
         if self.send_command('AT+CIMI', 5) == AtErrorCode.OK:
@@ -876,6 +888,23 @@ class NbntnModem:
                 _log.info('%s => %s', cmd, dprint(self.get_response()))
             else:
                 _log.error('Failed to query %s (ErrorCode: %d)', cmd, res)
+    
+    def get_signal_quality(self) -> SignalQuality:
+        """Get a qualitative indicator of 0..5 of satellite signal."""
+        sinr = self.get_siginfo()
+        if sinr >= SignalLevel.INVALID.value:
+            return SignalQuality.WARNING
+        if sinr >= SignalLevel.BARS_5.value:
+            return SignalQuality.STRONG
+        if sinr >= SignalLevel.BARS_4.value:
+            return SignalQuality.GOOD
+        if sinr >= SignalLevel.BARS_3.value:
+            return SignalQuality.MID
+        if sinr >= SignalLevel.BARS_2.value:
+            return SignalQuality.LOW
+        if sinr >= SignalLevel.BARS_1.value:
+            return SignalQuality.WEAK
+        return SignalQuality.NONE
 
 
 # Externally callable helper

@@ -1,6 +1,6 @@
 """Enumerated types for abstraction of commonly used values."""
 
-from enum import IntEnum
+from enum import Enum, IntEnum
 
 
 class ChipsetManufacturer(IntEnum):
@@ -152,3 +152,25 @@ class EdrxPtw(IntEnum):
     S_35 = 13   # 35.84 seconds
     S_38 = 14   # 38.4 seconds
     S_40 = 15   # 40.96 seconds
+
+
+class SignalLevel(Enum):
+    """Qualitative index of SINR."""
+    BARS_0 = -8
+    BARS_1 = -4
+    BARS_2 = 0
+    BARS_3 = 2
+    BARS_4 = 4
+    BARS_5 = 8
+    INVALID = 15
+
+
+class SignalQuality(IntEnum):
+    """Qualitative metric of signal quality."""
+    NONE = 0
+    WEAK = 1
+    LOW = 2
+    MID = 3
+    GOOD = 4
+    STRONG = 5
+    WARNING = 6
