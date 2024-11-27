@@ -941,9 +941,17 @@ class NbntnModem:
             else:
                 _log.error('Failed to query %s (ErrorCode: %d)', cmd, res)
     
-    def get_signal_quality(self) -> SignalQuality:
+    def get_rrc_state(self) -> bool:
+        """Get the perceived radio resource control connection status."""
+        connected = False
+        if self.send_command('AT+CSCON') == AtErrorCode.OK:
+            connected = self.get_response('+CSCON:').split(',')[1] == '1'
+        return connected
+
+    def get_signal_quality(self, sinr: 'int|float|None' = None) -> SignalQuality:
         """Get a qualitative indicator of 0..5 of satellite signal."""
-        sinr = self.get_siginfo().sinr
+        if not isinstance(sinr, (int, float)):
+            sinr = self.get_siginfo().sinr
         if sinr >= SignalLevel.INVALID.value:
             return SignalQuality.WARNING
         if sinr >= SignalLevel.BARS_5.value:
