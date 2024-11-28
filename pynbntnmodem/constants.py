@@ -156,12 +156,12 @@ class EdrxPtw(IntEnum):
 
 class SignalLevel(Enum):
     """Qualitative index of SINR."""
-    BARS_0 = -8
-    BARS_1 = -4
-    BARS_2 = 0
-    BARS_3 = 2
+    BARS_0 = -10
+    BARS_1 = -7
+    BARS_2 = -4
+    BARS_3 = 0
     BARS_4 = 4
-    BARS_5 = 8
+    BARS_5 = 7
     INVALID = 15
 
 
