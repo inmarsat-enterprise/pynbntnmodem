@@ -306,9 +306,11 @@ class NbntnModem:
         self._apn: str = ''
         self.apn = kwargs.get('apn', '')
         self._udp_server: str = ''
-        self.udp_server = kwargs.get('udp_server', '')
+        if kwargs.get('udp_server'):
+            self.udp_server = kwargs.get('udp_server')
         self._udp_server_port: int = 0
-        self.udp_server_port = kwargs.get('udp_port', 0)
+        if kwargs.get('udp_port') is not None:
+            self.udp_server_port = kwargs.get('udp_port')
     
     def connect(self, **kwargs) -> None:
         """Connect to the modem UART/serial"""
@@ -944,7 +946,7 @@ class NbntnModem:
     def get_rrc_state(self) -> bool:
         """Get the perceived radio resource control connection status."""
         connected = False
-        if self.send_command('AT+CSCON') == AtErrorCode.OK:
+        if self.send_command('AT+CSCON?') == AtErrorCode.OK:
             connected = self.get_response('+CSCON:').split(',')[1] == '1'
         return connected
 
