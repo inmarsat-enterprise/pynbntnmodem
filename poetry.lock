@@ -134,13 +134,13 @@ testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
 name = "pyatcommand"
-version = "0.3.1"
+version = "0.3.2"
 description = "An interface for V.25 Hayes AT commands"
 optional = false
 python-versions = "<4.0,>=3.9"
 files = [
-    {file = "pyatcommand-0.3.1-py3-none-any.whl", hash = "sha256:5e6098ed61a3516321191858ef17a095a81cc6582b28be8516ff996872e76963"},
-    {file = "pyatcommand-0.3.1.tar.gz", hash = "sha256:6e507b115ef8f91eda60617d72f2e59e3d44de0a62209841c42261b2255aee2b"},
+    {file = "pyatcommand-0.3.2-py3-none-any.whl", hash = "sha256:f008c97c1280198e3d5484ec0e12846dd2877dba7cc19e041b914c7b4c6f2973"},
+    {file = "pyatcommand-0.3.2.tar.gz", hash = "sha256:fffb3349e7717354c2506aaf2c1cf6f28bc386f2df518d15c4074b5e36b37a97"},
 ]
 
 [package.dependencies]
@@ -292,4 +292,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "e78c877749d5b9665a2c6e7c682e67bf306a11ab5f7b1ed85a4d07a606f36be0"
+content-hash = "00f80ea06906d8138962d35088c31bd56da561f18d1a6dd82a07be0e5d6147ae"
