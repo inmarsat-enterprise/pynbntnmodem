@@ -8,11 +8,17 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-pyatcommand = "^0.3.2"
+pyatcommand = "^0.3.3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.3"
 pylint = "^3.3.1"
+
+[tool.pytest.ini_options]
+log_cli = true
+log_cli_level = "DEBUG"
+log_cli_format = "%(asctime)s,[%(levelname)s],(%(threadName)s),%(module)s.%(funcName)s:%(lineno)s,%(message)s"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
 
 [build-system]
 requires = ["poetry-core"]
