@@ -313,7 +313,14 @@ class NbntnModem:
             self.udp_server_port = kwargs.get('udp_port')
     
     def connect(self, **kwargs) -> None:
-        """Connect to the modem UART/serial"""
+        """Connect to the modem UART/serial.
+
+        Supports PySerial creation kwargs.
+        
+        Args:
+            **port (str): The serial port name (default `/dev/ttyUSB0`)
+            **baudrate (int): The serial port baudrate (default `115200`)
+        """
         if 'port' not in kwargs:
             kwargs['port'] = self._serial_port
         if 'baudrate' not in kwargs:
