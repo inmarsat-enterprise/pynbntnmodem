@@ -516,6 +516,10 @@ class NbntnModem:
                     attempt += 1
                 else:
                     return False
+            if self._serial.is_response_ready():   # clear response for next step
+                init_res = self._serial.get_response()
+                if init_res:
+                    _log.debug('%s: %s', seq.get('why', 'NTN init'), init_res)
             if 'urc' in seq:
                 urc_kwargs = { 'prefixes': ['+', '%'] }
                 if 'urctimeout' in seq:
