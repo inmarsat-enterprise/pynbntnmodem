@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
-from pyatcommand import AtClient, AtErrorCode
+from pyatcommand import AtClient, AtErrorCode, AtTimeout
 from pyatcommand.utils import dprint
 
 from .constants import (
@@ -503,19 +503,26 @@ class NbntnModem:
                     at_cmd = at_cmd.replace('<apn>', self._apn)
                 else:
                     at_cmd = at_cmd.replace(',"<apn>"', '')
-            if (self.send_command(at_cmd, timeout=timeout) != seq['res']):
-                _log.error('Failed to %s', seq['why'])
-                if 'retry' in seq:
-                    retry: dict = seq.get('retry')
-                    if retry.get('count') > 0:
-                        if attempt > retry['count']:
+            success = False
+            while not success:
+                try:
+                    if self.send_command(at_cmd, timeout=timeout) == seq['res']:
+                        success = True
+                    else:
+                        _log.error('Failed to %s', seq['why'])
+                        if 'retry' in seq:
+                            retry: dict = seq.get('retry')
+                            if retry.get('count') > 0:
+                                if attempt > retry['count']:
+                                    return False
+                                delay = retry.get('delay', 1)
+                                _log.warning('Retrying in %0.1f seconds', delay)
+                                time.sleep(delay)
+                            attempt += 1
+                        else:
                             return False
-                        delay = retry.get('delay', 1)
-                        _log.warning('Retrying in %0.1f seconds', delay)
-                        time.sleep(delay)
-                    attempt += 1
-                else:
-                    return False
+                except AtTimeout:
+                    _log.error('NTN init timeout (%s)', at_cmd)
             if self._serial.is_response_ready():   # clear response for next step
                 init_res = self._serial.get_response()
                 if init_res:
@@ -546,6 +553,10 @@ class NbntnModem:
             else:
                 time.sleep(1)
         return ''
+    
+    def parse_urc(self, urc: str) -> dict:
+        """Parse a URC to retrieve relevant metadata."""
+        raise NotImplementedError('Requires module-specfic subclass')
     
     def get_info(self) -> str:
         """Get the detailed response of the AT information command."""
