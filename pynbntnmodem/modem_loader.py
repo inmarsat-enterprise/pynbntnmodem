@@ -7,8 +7,6 @@ import shutil
 import subprocess
 from typing import Type
 
-from dotenv import load_dotenv
-
 from pynbntnmodem.modem import NbntnBaseModem
 
 __all__ = ['clone_and_load_modem_classes', 'load_modem_class']
