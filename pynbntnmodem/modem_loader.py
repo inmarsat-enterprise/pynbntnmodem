@@ -9,7 +9,7 @@ from typing import Type
 
 from dotenv import load_dotenv
 
-from pynbntnmodem.modem import NbntnModem
+from pynbntnmodem.modem import NbntnBaseModem
 
 __all__ = ['clone_and_load_modem_classes', 'load_modem_class']
 
@@ -19,7 +19,7 @@ _log = logging.getLogger(__name__)
 def clone_and_load_modem_classes(repo_urls: 'list[str]',
                                  branch: str = 'main',
                                  download_path: str = '',
-                                 ) -> dict[str, Type[NbntnModem]]:
+                                 ) -> dict[str, Type[NbntnBaseModem]]:
     """
     Clone multiple Git repositories and load subclasses of NbntnModem.
 
@@ -69,7 +69,7 @@ def clone_and_load_modem_classes(repo_urls: 'list[str]',
     return modem_classes
 
 
-def load_modem_class(file_path: str) -> Type[NbntnModem] | None:
+def load_modem_class(file_path: str) -> Type[NbntnBaseModem] | None:
     """
     Load a Python file and return the modem class if it subclasses NbntnModem.
 
@@ -77,7 +77,7 @@ def load_modem_class(file_path: str) -> Type[NbntnModem] | None:
         file_path (str): Path to the Python file.
 
     Returns:
-        Type[NbntnModem] | None: The modem class if valid, else None.
+        Type[NbntnBaseModem] | None: The modem class if valid, else None.
     """
     module_name = os.path.splitext(os.path.basename(file_path))[0]
     spec = importlib.util.spec_from_file_location(module_name, file_path)
@@ -92,7 +92,8 @@ def load_modem_class(file_path: str) -> Type[NbntnModem] | None:
     # Look for subclasses of NbntnModem
     for attr_name in dir(module):
         attr = getattr(module, attr_name)
-        if isinstance(attr, type) and issubclass(attr, NbntnModem) and attr is not NbntnModem:
+        if (isinstance(attr, type) and issubclass(attr, NbntnBaseModem) and
+            attr is not NbntnBaseModem):
             return attr
 
     return None
