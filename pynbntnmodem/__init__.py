@@ -16,7 +16,7 @@ from .constants import (
     SignalLevel,
     SignalQuality,
 )
-from .dataclasses import (
+from .nbntndataclasses import (
     EdrxConfig,
     MtMessage,
     NtnLocation,
@@ -27,6 +27,7 @@ from .dataclasses import (
     SocketStatus,
 )
 from .modem import (
+    NbntnBaseModem,
     NbntnModem,
     get_model,
 )
@@ -45,6 +46,7 @@ __all__ = [
     "ModuleManufacturer",
     "ModuleModel",
     "MtMessage",
+    "NbntnBaseModem",
     "NbntnModem",
     "NtnLocation",
     "NtnOpMode",

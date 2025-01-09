@@ -29,7 +29,7 @@ from .constants import (
     # GnssFixType,
     UrcType,
 )
-from .dataclasses import (
+from .nbntndataclasses import (
     EdrxConfig,
     MoMessage,
     MtMessage,
@@ -40,7 +40,7 @@ from .dataclasses import (
     SigInfo,
     SocketStatus,
 )
-from .ntninit import generic
+from .ntninit import NtnInitSequence, default_init
 
 __all__ = [
     'NtnLocation',
@@ -57,7 +57,7 @@ __all__ = [
 _log = logging.getLogger(__name__)
 
 
-class NbntnModem(ABC):
+class NbntnBaseModem(ABC):
     """Abstraction for a NB-NTN modem."""
 
     _manufacturer: ModuleManufacturer = ModuleManufacturer.UNKNOWN
@@ -265,20 +265,29 @@ class NbntnModem(ABC):
             return self.get_response()
         return ''
     
+    @abstractmethod
     def initialize_ntn(self, **kwargs) -> bool:
         """Execute the modem-specific initialization to communicate on NTN."""
-        ntn_init: 'list[dict]' = kwargs.get('ntn_init', [])
-        if not ntn_init:
-            _log.warning('Using generic modem initialization sequence')
-            ntn_init = generic
+        ntn_init: 'NtnInitSequence' = kwargs.get('ntn_init', default_init)
+        if not isinstance(ntn_init, NtnInitSequence):
+            try:
+                ntn_init = NtnInitSequence.from_list_of_dict(ntn_init)
+            except Exception as exc:
+                raise ValueError('Invalid NtnInitSequence') from exc
         for seq in ntn_init:
-            if 'delay' in seq and isinstance(seq['delay'], (int, float)):
-                time.sleep(seq['delay'])
-            if 'cmd' not in seq:
-                _log.info('Skipping: %s', seq)
+            if seq.delay:
+                time.sleep(seq.delay)
+            if seq.gpio:
+                if seq.cmd:
+                    _log.info('GPIO found. Skipping: %s', seq.cmd)
+                if callable(seq.gpio.callback):
+                    seq.gpio.callback(seq.gpio.duration)
+                    time.sleep(seq.gpio.duration)
                 continue
-            at_cmd: str = seq.get('cmd')
-            timeout = seq.get('timeout', 1)
+            if (seq.cmd is None or (seq.res is None and seq.urc is None)):
+                _log.warning('Skipping invalid init command')
+                continue
+            at_cmd = seq.cmd
             attempt = 1
             if '<pdn_type>' in at_cmd:
                 pdn_type = self._pdp_type.name
@@ -293,34 +302,41 @@ class NbntnModem(ABC):
             success = False
             while not success:
                 try:
-                    if self.send_command(at_cmd, timeout=timeout) == seq['res']:
+                    res = self.send_command(at_cmd, timeout=seq.timeout)
+                    if res == seq.res:
                         success = True
                     else:
-                        _log.error('Failed to %s', seq['why'])
-                        if 'retry' in seq:
-                            retry: dict = seq.get('retry')
-                            if retry.get('count') > 0:
-                                if attempt > retry['count']:
-                                    return False
-                                delay = retry.get('delay', 1)
-                                _log.warning('Retrying in %0.1f seconds', delay)
-                                time.sleep(delay)
-                            attempt += 1
-                        else:
-                            return False
-                except AtTimeout:
-                    _log.error('NTN init timeout (%s)', at_cmd)
+                        raise ValueError(f'Expected {seq.res.name} but got {res.name}')
+                except (AtTimeout, ValueError) as exc:
+                    err_msg = f'Failed attempt {attempt} to {seq.why}: '
+                    if isinstance(exc, AtTimeout):
+                        err_msg += f'timeout ({at_cmd})'
+                    else:
+                        err_msg += str(exc)
+                    _log.error(err_msg)
+                    if seq.retry:
+                        if seq.retry.count > 0:
+                            if attempt >= seq.retry.count:
+                                return False
+                            if seq.retry.delay:
+                                _log.warning('Retrying in %0.1f seconds',
+                                                seq.retry.delay)
+                                time.sleep(seq.retry.delay)
+                        attempt += 1
+                    else:
+                        return False
             if self._serial.is_response_ready():   # clear response for next step
                 init_res = self._serial.get_response()
                 if init_res:
-                    _log.debug('%s: %s', seq.get('why', 'NTN init'), init_res)
-            if 'urc' in seq:
+                    _log.debug('%s: %s', seq.why or 'NTN init', init_res)
+            if seq.urc:
+                expected = seq.urc.urc
                 urc_kwargs = { 'prefixes': ['+', '%'] }
-                if 'urctimeout' in seq:
-                    urc_kwargs['timeout'] = seq['urctimeout']
-                urc = self.await_urc(seq['urc'], **urc_kwargs)
-                if urc != seq['urc']:
-                    _log.error('Received %s but expected %s', urc, seq['urc'])
+                if seq.urc.timeout:
+                    urc_kwargs['timeout'] = seq.urc.timeout
+                urc = self.await_urc(expected, **urc_kwargs)
+                if urc != expected:
+                    _log.error('Received %s but expected %s', urc, expected)
                     return False
         return True
     
@@ -806,6 +822,75 @@ class NbntnModem(ABC):
         if sinr >= SignalLevel.BARS_1.value:
             return SignalQuality.WEAK
         return SignalQuality.NONE
+
+
+class NbntnModem(NbntnBaseModem):
+    """A generic modem supporting the basic AT commands."""
+    def initialize_ntn(self, **kwargs):
+        return super().initialize_ntn(**kwargs)
+    
+    def get_sleep_mode(self):
+        return super().get_sleep_mode()
+    
+    def set_sleep_mode(self):
+        return super().set_sleep_mode()
+    
+    def is_asleep(self):
+        return super().is_asleep()
+    
+    def get_location(self):
+        return super().get_location()
+    
+    def set_location(self, loc, **kwargs):
+        return super().set_location(loc, **kwargs)
+    
+    def get_siginfo(self):
+        return super().get_siginfo()
+    
+    def use_lband(self):
+        return super().use_lband()
+    
+    def get_band(self):
+        return super().get_band()
+    
+    def get_frequency(self):
+        return super().get_frequency()
+    
+    def get_urc_type(self, urc):
+        return super().get_urc_type(urc)
+    
+    def enable_nidd_urc(self, enable = True, **kwargs):
+        return super().enable_nidd_urc(enable, **kwargs)
+    
+    def send_message_nidd(self, message, cid = 1, **kwargs):
+        return super().send_message_nidd(message, cid, **kwargs)
+    
+    def receive_message_nidd(self, urc, **kwargs):
+        return super().receive_message_nidd(urc, **kwargs)
+    
+    def ping_icmp(self, **kwargs):
+        return super().ping_icmp(**kwargs)
+    
+    def enable_udp_urc(self):
+        return super().enable_udp_urc()
+    
+    def udp_socket_open(self, **kwargs):
+        return super().udp_socket_open(**kwargs)
+    
+    def udp_socket_status(self, cid = 1):
+        return super().udp_socket_status(cid)
+    
+    def udp_socket_close(self, cid = 1):
+        return super().udp_socket_close(cid)
+    
+    def send_message_udp(self, message, **kwargs):
+        return super().send_message_udp(message, **kwargs)
+    
+    def receive_message_udp(self, cid = 1, **kwargs):
+        return super().receive_message_udp(cid, **kwargs)
+    
+    def report_debug(self, add_commands = None):
+        return super().report_debug(add_commands)
 
 
 # Externally callable helper
