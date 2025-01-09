@@ -9,7 +9,7 @@ from typing import Type
 
 from dotenv import load_dotenv
 
-from .modem import NbntnModem
+from pynbntnmodem.modem import NbntnModem
 
 __all__ = ['clone_and_load_modem_classes', 'load_modem_class']
 
@@ -96,24 +96,3 @@ def load_modem_class(file_path: str) -> Type[NbntnModem] | None:
             return attr
 
     return None
-
-
-# Example usage
-if __name__ == "__main__":
-    load_dotenv()
-    # List of repository URLs
-    REPO_URLS = [
-        f'https://{os.getenv('GITHUB_TOKEN')}@github.com/inmarsat-enterprise/modem-a.git',
-        f'https://{os.getenv('GITHUB_TOKEN')}@github.com/inmarsat-enterprise/modem-b.git',
-    ]
-    BRANCH = "main"
-
-    try:
-        modem_classes = clone_and_load_modem_classes(REPO_URLS, BRANCH)
-        print(f"Loaded modem classes: {list(modem_classes.keys())}")
-
-        # Instantiate and use a modem class (example)
-        for name, ModemClass in modem_classes.items():
-            modem_instance = ModemClass()
-    except Exception as e:
-        print(f"Error: {e}")
