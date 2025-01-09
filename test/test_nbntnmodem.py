@@ -1,5 +1,6 @@
 # import pytest
 
+from pyatcommand import AtErrorCode
 from pynbntnmodem import NbntnModem
 
 
@@ -29,3 +30,21 @@ def test_basic(caplog):
     for cmd in debug_commands:
         assert f'{cmd} =>' in caplog.text or f'Failed to query {cmd}' in caplog.text
     modem.disconnect()
+
+
+def test_initialize_ntn_with_retry(caplog):
+    """"""
+    caplog.set_level('INFO')
+    test_init = [
+        {
+            'cmd': 'ATQ1',
+            'res': AtErrorCode.OK,
+            'timeout': 1,
+            'retry': { 'count': 2 },
+            'why': 'disable radio during configuration'
+        },
+    ]
+    modem = NbntnModem()
+    modem.connect()
+    assert modem.is_connected()
+    modem.initialize_ntn(ntn_init=test_init)
