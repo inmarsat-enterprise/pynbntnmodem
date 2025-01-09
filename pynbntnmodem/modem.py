@@ -5,6 +5,7 @@ import logging
 import os
 import re
 import time
+# from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
@@ -273,7 +274,7 @@ class MtMessage:
     src_port: Optional[int] = None
 
 
-class NbntnModem:
+class NbntnModem:   # TODO: NbntnBaseModem(ABC)
     """Abstraction for a NB-NTN modem."""
 
     _manufacturer: ModuleManufacturer = ModuleManufacturer.UNKNOWN
