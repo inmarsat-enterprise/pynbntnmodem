@@ -28,6 +28,10 @@ from .modem import (
     SocketStatus,
     get_model,
 )
+from .modem_loader import (
+    clone_and_load_modem_classes,
+    load_modem_class,
+)
 
 __all__ = [
     "Chipset",
@@ -54,4 +58,6 @@ __all__ = [
     "SignalLevel",
     "SignalQuality",
     "get_model",
+    "clone_and_load_modem_classes",
+    "load_modem_class",
 ]
