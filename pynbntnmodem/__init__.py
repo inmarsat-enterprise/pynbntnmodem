@@ -11,21 +11,23 @@ from .constants import (
     NtnOpMode,
     RegistrationState,
     TransportType,
+    PdpType,
     UrcType,
     SignalLevel,
     SignalQuality,
 )
-from .modem import (
+from .dataclasses import (
     EdrxConfig,
     MtMessage,
-    NbntnModem,
     NtnLocation,
     PdpContext,
-    PdpType,
     PsmConfig,
     RegInfo,
     SigInfo,
     SocketStatus,
+)
+from .modem import (
+    NbntnModem,
     get_model,
 )
 from .modem_loader import (

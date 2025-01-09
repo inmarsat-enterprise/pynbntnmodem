@@ -5,11 +5,11 @@ import logging
 import os
 import re
 import time
-# from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Optional
 
+from abc import ABC, abstractmethod
+# from dataclasses import dataclass
+# from datetime import datetime, timezone
+# from typing import Optional
 from pyatcommand import AtClient, AtErrorCode, AtTimeout
 from pyatcommand.utils import dprint
 
@@ -19,15 +19,26 @@ from .constants import (
     ModuleModel,
     PdpType,
     RegistrationState,
-    NtnOpMode,
-    GnssFixType,
-    UrcType,
-    TauMultiplier,
-    ActMultiplier,
-    EdrxCycle,
-    EdrxPtw,
+    # TauMultiplier,
+    # ActMultiplier,
+    # EdrxCycle,
+    # EdrxPtw,
     SignalLevel,
     SignalQuality,
+    # NtnOpMode,
+    # GnssFixType,
+    UrcType,
+)
+from .dataclasses import (
+    EdrxConfig,
+    MoMessage,
+    MtMessage,
+    NtnLocation,
+    PdpContext,
+    PsmConfig,
+    RegInfo,
+    SigInfo,
+    SocketStatus,
 )
 from .ntninit import generic
 
@@ -46,235 +57,7 @@ __all__ = [
 _log = logging.getLogger(__name__)
 
 
-@dataclass
-class NtnLocation:
-    """Attributes of a NTN location.
-    
-    Used for purposes of registration and/or Tracking Area Update.
-    """
-    lat_deg: Optional[float] = None
-    lon_deg: Optional[float] = None
-    alt_m: Optional[float] = None
-    spd_mps: Optional[float] = None
-    cep_rms: Optional[int] = None
-    opmode: Optional[NtnOpMode] = None
-    fix_type: Optional[GnssFixType] = None
-    fix_timestamp: Optional[int] = None
-    hdop: Optional[float] = None
-    satellites: Optional[int] = None
-    
-    @property
-    def fix_time_iso(self) -> str:
-        if not self.fix_timestamp:
-            return ''
-        iso_time = datetime.fromtimestamp(self.fix_timestamp, tz=timezone.utc).isoformat()
-        return f'{iso_time[:19]}Z'
-
-
-@dataclass
-class RegInfo:
-    """Attributes of NTN registration state."""
-    state: RegistrationState = RegistrationState.UNKNOWN
-    tac: str = ''
-    ci: str = ''
-    cause_type: int = 0
-    reject_cause: int = 0
-    active_time_bitmask: str = ''
-    tau_bitmask: str = ''
-    
-    def is_registered(self) -> bool:
-        return self.state in [RegistrationState.HOME, RegistrationState.ROAMING]
-
-
-@dataclass
-class SigInfo:
-    """Attributes of NB-NTN relevant signal level information."""
-    rsrp: int = 255   # Reference Signal Received Power (dBm)
-    rsrq: int = 255   # Reference Signal Received Quality (dB)
-    sinr: int = 255   # Signal Interference + Noise Ratio (dB)
-    rssi: int = 99   # Received signal strength indicator (dB)
-    ber: float = 99.0   # Channel bit error rate %
-
-
-@dataclass
-class PdpContext:
-    """Attributes of a NB-NTN Packet Data Protocol context/definition."""
-    id: int = 1   # context ID
-    pdp_type: PdpType = PdpType.IP
-    apn: str = ''
-    ip: 'str|None' = ''   # the IP address if type is IP and attached
-
-
-@dataclass
-class PsmConfig:
-    """Power Saving Mode configuration attributes."""
-    tau_t3412_bitmask: str = ''   # TAU timer - when the modem updates its location
-    act_t3324_bitmask: str = ''   # Activity timer - how long the modem stays awake after TAU
-    
-    @staticmethod
-    def tau_seconds(bitmask: str) -> int:
-        """Convert a TAU bitmask to seconds."""
-        if not bitmask:
-            return 0
-        tvu = (int(bitmask, 2) & 0b11100000) >> 5   # timer value unit
-        bct = int(bitmask, 2) & 0b00011111   # binary coded timer value
-        if TauMultiplier(tvu) == TauMultiplier.DEACTIVATED:
-            return 0
-        unit, multiplier = TauMultiplier(tvu).name.split('_')
-        if unit == 'H':
-            return bct * int(multiplier) * 3600
-        if unit == 'M':
-            return bct * int(multiplier) * 60
-        return bct * int(multiplier)
-    
-    @staticmethod
-    def seconds_to_tau(seconds: int) -> str:
-        """Convert an integer value to a TAU bitmask."""
-        if not isinstance(seconds, int) or seconds == 0:
-            return f'{(TauMultiplier.DEACTIVATED << 5):08b}'
-        MAX_TAU = 31 * 320 * 3600
-        if seconds > MAX_TAU:
-            seconds = MAX_TAU
-        multipliers = [2, 30, 60, 3600, 10*3600]
-        bct = None
-        tvu = None
-        for i, m in enumerate(multipliers):
-            if seconds <= 31 * m:
-                bct = int(seconds / m)
-                tvu = TauMultiplier(i).value << 5
-                break
-        if tvu is None:
-            bct = int(seconds / (320 * 3600))
-            tvu = TauMultiplier.H_320.value << 5
-        return f'{(tvu & bct):08b}'
-    
-    @staticmethod
-    def act_seconds(bitmask: str) -> int:
-        """Convert the bitmask to Active PSM seconds."""
-        if not bitmask:
-            return 0
-        tvu = (int(bitmask, 2) & 0b11100000) >> 5   # timer value unit
-        bct = int(bitmask, 2) & 0b00011111   # binary coded timer value
-        if ActMultiplier(tvu) == ActMultiplier.DEACTIVATED:
-            return 0
-        unit, multiplier = ActMultiplier(tvu).name.split('_')
-        if unit == 'H':
-            return bct * int(multiplier) * 3600
-        if unit == 'M':
-            return bct * int(multiplier) * 60
-        return bct * int(multiplier)
-    
-    @staticmethod
-    def seconds_to_act(seconds: int) -> str:
-        """Convert active time seconds to the ACT bitmask."""
-        if not isinstance(seconds, int) or seconds == 0:
-            return f'{(ActMultiplier.DEACTIVATED << 5):08b}'
-        MAX_ACT = 31 * 6 * 60
-        if seconds > MAX_ACT:
-            seconds = MAX_ACT
-        multipliers = [2, 60]
-        bct = None
-        tvu = None
-        for i, m in enumerate(multipliers):
-            if seconds <= (31 * m):
-                bct = int(seconds / m)
-                tvu = ActMultiplier(i).value << 5
-                break
-        if tvu is None:
-            bct = int(seconds / (6 * 60))
-            tvu = ActMultiplier.M_6 << 5
-        return f'{(tvu & bct):08b}'
-    
-    @property
-    def tau_s(self) -> int:
-        """The requested TAU interval in seconds."""
-        return PsmConfig.tau_seconds(self.tau_t3412_bitmask)
-    
-    @property
-    def act_s(self) -> int:
-        """The requested Activity duration in seconds."""
-        return PsmConfig.act_seconds(self.act_t3324_bitmask)
-
-
-@dataclass
-class EdrxConfig:
-    """Extended Discontiguous Receive mode configuration attributes."""
-    cycle_bitmask: str = ''
-    ptw_bitmask: str = ''
-
-    @staticmethod
-    def edrx_cycle_seconds(bitmask: str) -> int:
-        """Calculate the eDRX cycle time from the bitmask."""
-        try:
-            tvu = int(bitmask, 2)
-            if tvu > 15:
-                raise ValueError('Invalid bitmask')
-            return int(EdrxCycle(tvu).name.split('_')[1])
-        except ValueError:
-            return 0
-    
-    @staticmethod
-    def seconds_to_edrx_cycle(seconds: 'int|float') -> str:
-        """Convert nearest seconds to eDRX cycle bitmask"""
-        MAX_EDRX_CYCLE = 10485
-        if seconds > MAX_EDRX_CYCLE:
-            seconds = MAX_EDRX_CYCLE
-        edrx_values = [5, 10, 20, 40, 60, 80, 160, 325, 655, 1310, 2620, 5240]
-        for i, v in enumerate(edrx_values):
-            if seconds <= v:
-                return f'{EdrxCycle(i).value:04b}'
-        return f'{EdrxCycle.S_10485.value:04b}'
-    
-    @staticmethod
-    def edrx_ptw_seconds(bitmask: str) -> int:
-        """Calculate the eDRX cycle time from the bitmask."""
-        try:
-            tvu = int(bitmask, 2)
-            if tvu > 15:
-                raise ValueError('Invalid bitmask')
-            return int(EdrxPtw(tvu).name.split('_')[1])
-        except ValueError:
-            return 0
-    
-    @staticmethod
-    def seconds_to_edrx_ptw(seconds: 'int|float') -> str:
-        """Convert seconds to Paging Time Window bitmask"""
-        MAX_PTW = 40
-        if seconds > MAX_PTW:
-            seconds = MAX_PTW
-        ptw_values = [2, 5, 7, 10, 12, 15, 17, 20, 23, 25, 28, 30, 33, 35, 38]
-        for i, v in enumerate(ptw_values):
-            if seconds <= v:
-                return f'{EdrxPtw(i).value:04b}'
-        return f'{EdrxPtw.S_40.value:04b}'
-    
-    @property
-    def cycle_s(self) -> float:
-        """The requested eDRX cycle time in seconds."""
-        return EdrxConfig.edrx_cycle_seconds(self.cycle_bitmask)
-    
-    @property
-    def ptw_s(self) -> float:
-        """The requested eDRX Paging Time Window in seconds."""
-        return EdrxConfig.edrx_ptw_seconds(self.ptw_bitmask)
-
-
-@dataclass
-class SocketStatus:
-    """Metadata for a UDP socket including state and IP address"""
-    active: bool = False
-    ip_address: str = ''
-
-
-@dataclass
-class MtMessage:
-    """Metadata for Mobile-Terminated message including payload and source"""
-    payload: 'bytes|None' = None
-    src_ip: Optional[str] = None
-    src_port: Optional[int] = None
-
-
-class NbntnModem:   # TODO: NbntnBaseModem(ABC)
+class NbntnModem(ABC):
     """Abstraction for a NB-NTN modem."""
 
     _manufacturer: ModuleManufacturer = ModuleManufacturer.UNKNOWN
@@ -360,10 +143,12 @@ class NbntnModem:   # TODO: NbntnBaseModem(ABC)
         """
         return self._serial.check_urc(**kwargs)
     
+    @abstractmethod
     def get_sleep_mode(self):
         """Get the modem hardware sleep settings."""
         raise NotImplementedError('Requires module-specfic subclass')
 
+    @abstractmethod
     def set_sleep_mode(self):
         """Set the modem hardware sleep settings."""
         raise NotImplementedError('Requires module-specfic subclass')
@@ -469,6 +254,7 @@ class NbntnModem:   # TODO: NbntnBaseModem(ABC)
             raise ValueError('Invalid UDP port')
         self._udp_server_port = port
     
+    @abstractmethod
     def is_asleep(self) -> bool:
         """Check if the modem is in deep sleep state."""
         raise NotImplementedError('Requires module-specific subclass')
@@ -578,10 +364,12 @@ class NbntnModem:   # TODO: NbntnBaseModem(ABC)
         """Use the internal GNSS for NTN network registration."""
         raise NotImplementedError('Requires module-specfic subclass')
 
+    @abstractmethod
     def get_location(self) -> NtnLocation:
         """Get the location currently in use by the modem."""
         raise NotImplementedError('Requires module-specific subclass')
     
+    @abstractmethod
     def set_location(self, loc: NtnLocation, **kwargs) -> bool:
         """Set the modem location to use for registration/TAU."""
         raise NotImplementedError('Requires module-specific subclass')
@@ -621,9 +409,9 @@ class NbntnModem:   # TODO: NbntnBaseModem(ABC)
                 elif i == 5 and param:
                     info.reject_cause = int(param)
                 elif i == 6 and param:
-                    info.active_time_bitmask = param
+                    info.act_t3324_bitmask = param
                 elif i == 7 and param:
-                    info.tau_bitmask = param
+                    info.tau_t3412_bitmask = param
         return info
     
     def get_regconfig(self) -> int:
@@ -639,6 +427,7 @@ class NbntnModem:   # TODO: NbntnBaseModem(ABC)
             raise ValueError('Invalid CEREG config value')
         return self.send_command(f'AT+CEREG={config}') == AtErrorCode.OK
     
+    @abstractmethod
     def get_siginfo(self) -> SigInfo:
         """Get the signal information from the modem."""
         info = SigInfo(255, 255, 255, 255)
@@ -783,20 +572,24 @@ class NbntnModem:   # TODO: NbntnBaseModem(ABC)
                     dynamic.ptw_bitmask = param
         return dynamic
     
+    @abstractmethod
     def use_lband(self) -> bool:
         """Restrict network scans to L-band 255."""
         raise NotImplementedError('Requires module-specific subclass')
         
+    @abstractmethod
     def get_band(self) -> int:
         """Get the current LTE band in use."""
         _log.warning('No module-specific subclass - returning -1')
         return -1
 
+    @abstractmethod
     def get_frequency(self) -> int:
         """Get the current frequency in use if camping on a cell."""
         _log.warning('No module-specific subclass - returning -1')
         return -1
     
+    @abstractmethod
     def get_urc_type(self, urc: str) -> UrcType:
         """Get the URC type to determine a handling function/parameters."""
         if not isinstance(urc, str):
@@ -819,6 +612,7 @@ class NbntnModem:   # TODO: NbntnBaseModem(ABC)
         """
         raise NotImplementedError('Requires module-specific subclass')
     
+    @abstractmethod
     def enable_nidd_urc(self, enable: bool = True, **kwargs) -> bool:
         """Enable unsolicited reporting of received Non-IP data.
         
@@ -826,19 +620,27 @@ class NbntnModem:   # TODO: NbntnBaseModem(ABC)
         """
         return self.send_command(f'AT+CRTDCP={int(enable)}') == AtErrorCode.OK
 
-    def send_message_nidd(self, message: bytes, cid: int = 1, **kwargs) -> bool:
+    @abstractmethod
+    def send_message_nidd(self, message: bytes, cid: int = 1, **kwargs) -> 'MoMessage|None':
         """Send a message using Non-IP transport."""
         _log.warning('Sending NIDD message without confirmation')
         cmd = f'AT+CSODCP={cid},{len(message)},"{message.hex()}"'
-        return self.send_command(cmd) == AtErrorCode.OK
+        if self.send_command(cmd) == AtErrorCode.OK:
+            return MoMessage(message, PdpType.NON_IP)
+        return None
     
-    def receive_message_nidd(self, urc: str, **kwargs) -> 'bytes|None':
+    @abstractmethod
+    def receive_message_nidd(self, urc: str, **kwargs) -> 'bytes|MtMessage|None':
         """Parses a NIDD URC string to derive the MT/downlink bytes sent.
         
         Args:
             urc (str): The 3GPP standard +CRTDCP unsolicited output
+            **include_meta (bool): If True returns `MtMessage`
+        
+        Returns:
+            The payload `bytes` or `MtMessage` metadata with `payload`
         """
-        received = None
+        payload = None
         if isinstance(urc, str) and urc.startswith('+CRTDCP'):
             urc = urc.replace('+CRTDCP:', '').strip()
             params = urc.split(',')
@@ -847,11 +649,14 @@ class NbntnModem:   # TODO: NbntnBaseModem(ABC)
                 if not param:
                     continue
                 if i == 2:
-                    received = bytes.fromhex(param)
+                    payload = bytes.fromhex(param)
         else:
             _log.error('Invalid URC: %s', urc)
-        return received
+        if kwargs.get('include_meta', False) is True:
+            return MtMessage(payload, transport=PdpType.NON_IP)
+        return payload
     
+    @abstractmethod
     def ping_icmp(self, **kwargs) -> int:
         """Send a ICMP ping to a target address.
         
@@ -867,11 +672,13 @@ class NbntnModem:   # TODO: NbntnBaseModem(ABC)
         """
         raise NotImplementedError('Requires module-specific subclass')
     
+    @abstractmethod
     def enable_udp_urc(self) -> bool:
         """Enables URC supporting UDP operation."""
         # raise NotImplementedError('Must implement in subclass')
         return False
     
+    @abstractmethod
     def udp_socket_open(self, **kwargs) -> bool:
         """Open a UDP socket.
         
@@ -883,15 +690,18 @@ class NbntnModem:   # TODO: NbntnBaseModem(ABC)
         """
         raise NotImplementedError('Requires module-specific subclass')
     
+    @abstractmethod
     def udp_socket_status(self, cid: int = 1) -> SocketStatus:
         """Get the status of the specified socket/context ID."""
         raise NotImplementedError('Requires module-specific subclass')
     
+    @abstractmethod
     def udp_socket_close(self, cid: int = 1) -> bool:
         """Close the specified socket."""
         raise NotImplementedError('Requires module-specific subclass')
     
-    def send_message_udp(self, message: bytes, **kwargs) -> bool:
+    @abstractmethod
+    def send_message_udp(self, message: bytes, **kwargs) -> 'MoMessage|None':
         """Send a message using UDP transport.
 
         Opens a socket if one does not exist and closes after sending.
@@ -902,21 +712,26 @@ class NbntnModem:   # TODO: NbntnBaseModem(ABC)
             **port (int): The server port if establishing a new socket
             **src_port (int): Optional source port to use
             **cid (int): The context/session ID (default 1)
+        
+        Returns:
+            A `MoMessage` structure with `payload` and IP header metadata
         """
         raise NotImplementedError('Requires module-specific subclass')
     
-    def receive_message_udp(self, cid: int = 1, **kwargs) -> 'bytes|MtMessage':
+    @abstractmethod
+    def receive_message_udp(self, cid: int = 1, **kwargs) -> 'bytes|MtMessage|None':
         """Get MT/downlink data received over UDP.
         
         Args:
             **cid (int): Context/session ID
             **urc (str): URC output including hex payload
             **size (int): Maximum bytes to read (default 256)
-            **payload_only (bool): Default True returns bytes.
-                False returns MtMessage with IP metadata.
+            **include_meta (bool): If True returns `MtMessage` otherwise returns
+                `bytes`.
         
         Returns:
-            `bytes` by default or a `MtMessage` structure with metadata
+            `bytes` by default or a `MtMessage` structure with `payload` and
+                IP address/port
         """
         raise NotImplementedError('Requires module-specific subclass')
     
@@ -938,6 +753,7 @@ class NbntnModem:   # TODO: NbntnBaseModem(ABC)
         """
         raise NotImplementedError('Requires module-specific subclass')
     
+    @abstractmethod
     def report_debug(self, add_commands: 'list[str]|None' = None) -> None:
         """Log a set of module-relevant config settings and KPIs."""
         debug_commands = [   # Base commands are 3GPP TS 27.007
