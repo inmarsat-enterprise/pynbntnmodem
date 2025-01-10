@@ -26,6 +26,10 @@ class ModuleManufacturer(IntEnum):
     QUECTEL = 1
     MURATA = 2
     SEMTECH = 3
+    COMPAL = 4
+    TELIT = 5
+    UBLOX = 6
+    NORDIC = 7
 
 
 class ModuleModel(IntEnum):
@@ -33,8 +37,13 @@ class ModuleModel(IntEnum):
     UNKNOWN = 0
     CC660D = 1   # Quectel CC660D-LS
     TYPE1SC = 2   # Murata Type 1SC
-    BG95 = 3   # Quectel BG95-S5
+    BG95S5 = 3   # Quectel BG95-S5
     HL781X = 4   # Semtech HL781x
+    BG770ASN = 5   # Quectel BG770A-SN
+    RMMT1 = 6   # Compal RMM-T1
+    ME910G1 = 7   # Telit ME910G1
+    SARAS528NM10 = 8   # uBlox SARA-S528NM10
+    NRF9151 = 9   # Nordic Semiconductor nRF9151
 
 
 class PdpType(IntEnum):
