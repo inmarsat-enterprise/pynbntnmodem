@@ -9,8 +9,9 @@ from pynbntnmodem import (
     NbntnBaseModem,
     ModuleManufacturer,
     ModuleModel,
-    clone_and_load_modem_classes,
     get_model,
+    clone_and_load_modem_classes,
+    load_modem_class,
 )
 
 test_log = logging.getLogger(__name__)
@@ -117,6 +118,8 @@ def test_repo_import():
             if download_path:
                 filename = os.path.join(download_path, f'{name}.py')
                 assert os.path.isfile(filename)
+                modem_cls = load_modem_class(filename)
+                assert issubclass(modem_cls, NbntnBaseModem)
                 os.remove(filename)
     except Exception as e:
         test_log.error(f"Error: {e}")
