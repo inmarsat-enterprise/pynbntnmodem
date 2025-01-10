@@ -272,13 +272,15 @@ class NbntnBaseModem(ABC):
                 time.sleep(step.delay)
             if step.gpio:
                 if step.cmd:
-                    _log.info('GPIO found. Skipping: %s', step.cmd)
+                    _log.debug('GPIO found. Skipping: %s', step.cmd)
                 if callable(step.gpio.callback):
+                    _log.debug('NTN initialization triggering GPIO callback')
                     step.gpio.callback(step.gpio.duration)
                     time.sleep(step.gpio.duration)
                 continue
             if (step.cmd is None or (step.res is None and step.urc is None)):
-                _log.warning('Skipping invalid init command')
+                _log.warning('Skipping invalid init command (step %d)',
+                             sequence_step)
                 continue
             at_cmd = step.cmd
             attempt = 1
@@ -309,8 +311,8 @@ class NbntnBaseModem(ABC):
                             if attempt >= step.retry.count:
                                 break
                             if step.retry.delay:
-                                _log.warning('Retrying in %0.1f seconds',
-                                                step.retry.delay)
+                                _log.warning('Init retry %s in %0.1f seconds',
+                                             step.cmd, step.retry.delay)
                                 time.sleep(step.retry.delay)
                         attempt += 1
                     else:
@@ -338,14 +340,14 @@ class NbntnBaseModem(ABC):
     def await_urc(self, urc: str = '', **kwargs) -> str:
         """Wait for an unsolicited result code or timeout."""
         timeout = float(kwargs.get('timeout', 0))
-        _log.info('Waiting for unsolicited %s (timeout: %s)', urc, timeout)
+        _log.debug('Waiting for unsolicited %s (timeout: %s)', urc, timeout)
         prefixes = kwargs.get('prefixes', ['+', '%'])
         wait_start = time.time()
         while timeout == 0 or time.time() - wait_start < timeout:
             if self.check_urc(prefixes=prefixes):
                 candidate = self.get_response()
                 if urc and candidate.startswith(urc):
-                    _log.debug('%s received after %0.1f seconds',
+                    _log.debug('URC: %s received after %0.1f seconds',
                                candidate, time.time() - wait_start)
                     return candidate
             else:
@@ -701,7 +703,7 @@ class NbntnBaseModem(ABC):
         Returns:
             MoMessage object with optional metadata.
         """
-        _log.warning('Sending NIDD message without confirmation')
+        _log.debug('Sending NIDD message without confirmation')
         cmd = f'AT+CSODCP={cid},{len(message)},"{message.hex()}"'
         if self.send_command(cmd) == AtErrorCode.OK:
             return MoMessage(message, PdpType.NON_IP)
