@@ -283,15 +283,12 @@ class NbntnBaseModem(ABC):
             at_cmd = step.cmd
             attempt = 1
             if '<pdn_type>' in at_cmd:
-                pdn_type = self._pdp_type.name
-                if 'non' in pdn_type.lower():
-                    pdn_type = 'NON-IP'
+                pdn_type = self._pdp_type.name.replace('_', '-')
                 at_cmd = at_cmd.replace('<pdn_type>', pdn_type)
             if '<apn>' in at_cmd:
-                if self._apn:
-                    at_cmd = at_cmd.replace('<apn>', self._apn)
-                else:
-                    at_cmd = at_cmd.replace(',"<apn>"', '')
+                if not self._apn:
+                    _log.warning('No APN configured - UE will not register')
+                at_cmd = at_cmd.replace('<apn>', self._apn)
             step_success = False
             while not step_success:
                 try:
