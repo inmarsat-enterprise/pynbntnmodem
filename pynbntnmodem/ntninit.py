@@ -3,22 +3,6 @@
 Each supported modem is initialized by a sequence of AT commands represented
 as a list of objects/dictionaries.
 
-Each command/response is a dictionary represented by optional elements:
-
-* `why` is for the reader/developer to understand the function being performed
-* `hw` is an optional key indicating a need to assert or pulse a modem input line
-* `duration` when combined with `hw` indicates a pulse duration otherwise hold
-* `cmd` is the AT command to be sent. May include keywords for replacement
-with configured values including "<pdn_type>", "<apn>"
-* `res` is the expected AtErrorCode result from the command
-* `timeout` is the response timeout (seconds)
-* `response` is an optional string returned by the command before the result code
-* `retry` allows { "count": <int>, "delay": <float> } between timeouts where
-count=0 means retry indefinitely
-* `urc` is an optional Unsoliticted Result Code that the main code should await
-* `urctimeout` allows a timeout (seconds) waiting for the specified URC
-* `delay` adds a delay (Python sleep) in the process
-
 """
 
 import json
@@ -102,7 +86,7 @@ class NtnInitCommand:
     Attributes:
         why (str): Reason why this operation is performed. Used for debug.
         cmd (str): The AT command to send. Special keys within the string
-            are `<pdn_type>`, `<apn>`.
+            are `<pdn_type>`, `<apn>` which will be substituted.
         res (AtErrorCode): The expected result code (default `OK`).
         timeout (float): The maximum number of seconds to wait for result.
         gpio (NtnHardwareAssert): Optional instruction of a GPIO handle to assert.
