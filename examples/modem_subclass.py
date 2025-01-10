@@ -4,7 +4,7 @@ import logging
 
 from pyatcommand import AtClient, AtErrorCode
 
-from pynbntnmodem import NbntnModem, Chipset
+from pynbntnmodem import DefaultModem, Chipset
 
 __all__ = [ 'AltairNbModem', 'MODEM_SUBCLASS' ]
 
@@ -72,7 +72,7 @@ ntn_init = [
     },
 ]
 
-class AltairNbModem(NbntnModem):
+class AltairNbModem(DefaultModem):
     """Class representing Murata Type1-SC module."""
     
     _chipset = Chipset.ALT1250

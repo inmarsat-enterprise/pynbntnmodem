@@ -7,9 +7,6 @@ import re
 import time
 
 from abc import ABC, abstractmethod
-# from dataclasses import dataclass
-# from datetime import datetime, timezone
-# from typing import Optional
 from pyatcommand import AtClient, AtErrorCode, AtTimeout
 from pyatcommand.utils import dprint
 
@@ -19,14 +16,8 @@ from .constants import (
     ModuleModel,
     PdpType,
     RegistrationState,
-    # TauMultiplier,
-    # ActMultiplier,
-    # EdrxCycle,
-    # EdrxPtw,
     SignalLevel,
     SignalQuality,
-    # NtnOpMode,
-    # GnssFixType,
     UrcType,
 )
 from .nbntndataclasses import (
@@ -43,22 +34,18 @@ from .nbntndataclasses import (
 from .ntninit import NtnInitSequence, default_init
 
 __all__ = [
-    'NtnLocation',
-    'RegInfo',
-    'SigInfo',
-    'PdpContext',
-    'PsmConfig',
-    'EdrxConfig',
-    'SocketStatus',
-    'MtMessage',
-    'NbntnModem',
+    'NbntnBaseModem',
+    'DefaultModem',
+    'get_model',
+    'is_valid_hostname',
+    'is_valid_ip',
 ]
 
 _log = logging.getLogger(__name__)
 
 
 class NbntnBaseModem(ABC):
-    """Abstraction for a NB-NTN modem."""
+    """Abstract Base Class for a NB-NTN modem."""
 
     _manufacturer: ModuleManufacturer = ModuleManufacturer.UNKNOWN
     _model: ModuleModel = ModuleModel.UNKNOWN
@@ -95,6 +82,10 @@ class NbntnBaseModem(ABC):
         self._udp_server_port: int = 0
         if kwargs.get('udp_port') is not None:
             self.udp_server_port = kwargs.get('udp_port')
+    
+    def get_at_client(self) -> AtClient:
+        """Get the AtClient interface"""
+        return self._serial
     
     def connect(self, **kwargs) -> None:
         """Connect to the modem UART/serial.
@@ -143,24 +134,14 @@ class NbntnBaseModem(ABC):
         """
         return self._serial.check_urc(**kwargs)
     
-    @abstractmethod
-    def get_sleep_mode(self):
-        """Get the modem hardware sleep settings."""
-        raise NotImplementedError('Requires module-specfic subclass')
-
-    @abstractmethod
-    def set_sleep_mode(self):
-        """Set the modem hardware sleep settings."""
-        raise NotImplementedError('Requires module-specfic subclass')
-
-    def get_error_mode(self) -> int:
-        """Get the CMEE error mode configuration"""
+    def get_cme_mode(self) -> int:
+        """Get the CME device error response configuration"""
         if self.send_command('AT+CMEE?') == AtErrorCode.OK:
             return int(self.get_response())
         return 0
     
-    def set_error_mode(self, mode: int) -> bool:
-        """Set the CMEE error mode configuration"""
+    def set_cme_mode(self, mode: int) -> bool:
+        """Set the CME device error response configuration"""
         if mode not in [0, 1, 2]:
             raise ValueError('Invalid CMEE setting')
         return self.send_command(f'AT+CMEE={mode}') == AtErrorCode.OK
@@ -259,6 +240,16 @@ class NbntnBaseModem(ABC):
         """Check if the modem is in deep sleep state."""
         raise NotImplementedError('Requires module-specific subclass')
     
+    @abstractmethod
+    def get_sleep_mode(self):
+        """Get the modem hardware sleep settings."""
+        raise NotImplementedError('Requires module-specfic subclass')
+
+    @abstractmethod
+    def set_sleep_mode(self):
+        """Set the modem hardware sleep settings."""
+        raise NotImplementedError('Requires module-specfic subclass')
+
     def get_imsi(self) -> 'str':
         """Get the IMSI of the SIM installed with the modem."""
         if self.send_command('AT+CIMI', 5) == AtErrorCode.OK:
@@ -274,20 +265,22 @@ class NbntnBaseModem(ABC):
                 ntn_init = NtnInitSequence.from_list_of_dict(ntn_init)
             except Exception as exc:
                 raise ValueError('Invalid NtnInitSequence') from exc
-        for seq in ntn_init:
-            if seq.delay:
-                time.sleep(seq.delay)
-            if seq.gpio:
-                if seq.cmd:
-                    _log.info('GPIO found. Skipping: %s', seq.cmd)
-                if callable(seq.gpio.callback):
-                    seq.gpio.callback(seq.gpio.duration)
-                    time.sleep(seq.gpio.duration)
+        sequence_step = 0
+        for step in ntn_init:
+            sequence_step += 1
+            if step.delay:
+                time.sleep(step.delay)
+            if step.gpio:
+                if step.cmd:
+                    _log.info('GPIO found. Skipping: %s', step.cmd)
+                if callable(step.gpio.callback):
+                    step.gpio.callback(step.gpio.duration)
+                    time.sleep(step.gpio.duration)
                 continue
-            if (seq.cmd is None or (seq.res is None and seq.urc is None)):
+            if (step.cmd is None or (step.res is None and step.urc is None)):
                 _log.warning('Skipping invalid init command')
                 continue
-            at_cmd = seq.cmd
+            at_cmd = step.cmd
             attempt = 1
             if '<pdn_type>' in at_cmd:
                 pdn_type = self._pdp_type.name
@@ -299,51 +292,56 @@ class NbntnBaseModem(ABC):
                     at_cmd = at_cmd.replace('<apn>', self._apn)
                 else:
                     at_cmd = at_cmd.replace(',"<apn>"', '')
-            success = False
-            while not success:
+            step_success = False
+            while not step_success:
                 try:
-                    res = self.send_command(at_cmd, timeout=seq.timeout)
-                    if res == seq.res:
-                        success = True
+                    res = self.send_command(at_cmd, timeout=step.timeout)
+                    if res == step.res:
+                        step_success = True
                     else:
-                        raise ValueError(f'Expected {seq.res.name} but got {res.name}')
+                        raise ValueError(f'Expected {step.res.name} but got {res.name}')
                 except (AtTimeout, ValueError) as exc:
-                    err_msg = f'Failed attempt {attempt} to {seq.why}: '
+                    err_msg = f'Failed attempt {attempt} to {step.why}: '
                     if isinstance(exc, AtTimeout):
                         err_msg += f'timeout ({at_cmd})'
                     else:
                         err_msg += str(exc)
                     _log.error(err_msg)
-                    if seq.retry:
-                        if seq.retry.count > 0:
-                            if attempt >= seq.retry.count:
-                                return False
-                            if seq.retry.delay:
+                    if step.retry:
+                        if step.retry.count > 0:
+                            if attempt >= step.retry.count:
+                                break
+                            if step.retry.delay:
                                 _log.warning('Retrying in %0.1f seconds',
-                                                seq.retry.delay)
-                                time.sleep(seq.retry.delay)
+                                                step.retry.delay)
+                                time.sleep(step.retry.delay)
                         attempt += 1
                     else:
-                        return False
+                        break
             if self._serial.is_response_ready():   # clear response for next step
                 init_res = self._serial.get_response()
                 if init_res:
-                    _log.debug('%s: %s', seq.why or 'NTN init', init_res)
-            if seq.urc:
-                expected = seq.urc.urc
+                    _log.debug('%s: %s', step.why or 'NTN init', init_res)
+            if step.urc:
+                expected = step.urc.urc
                 urc_kwargs = { 'prefixes': ['+', '%'] }
-                if seq.urc.timeout:
-                    urc_kwargs['timeout'] = seq.urc.timeout
+                if step.urc.timeout:
+                    urc_kwargs['timeout'] = step.urc.timeout
                 urc = self.await_urc(expected, **urc_kwargs)
                 if urc != expected:
                     _log.error('Received %s but expected %s', urc, expected)
-                    return False
+                    break
+        if sequence_step != len(ntn_init):
+            _log.error('NTN initialization failed at step %d (%s)',
+                       sequence_step, ntn_init[sequence_step - 1].cmd)
+            return False
+        _log.debug('NTN initialization complete')
         return True
     
     def await_urc(self, urc: str = '', **kwargs) -> str:
         """Wait for an unsolicited result code or timeout."""
-        _log.info('Waiting for unsolicited %s', urc)
         timeout = float(kwargs.get('timeout', 0))
+        _log.info('Waiting for unsolicited %s (timeout: %s)', urc, timeout)
         prefixes = kwargs.get('prefixes', ['+', '%'])
         wait_start = time.time()
         while timeout == 0 or time.time() - wait_start < timeout:
@@ -355,6 +353,7 @@ class NbntnBaseModem(ABC):
                     return candidate
             else:
                 time.sleep(1)
+        _log.warning('Timed out waiting for URC (%s)', urc)
         return ''
     
     def parse_urc(self, urc: str) -> dict:
@@ -393,9 +392,13 @@ class NbntnBaseModem(ABC):
     def get_reginfo(self, urc: str = '') -> RegInfo:
         """Get the parameters of the registration state of the modem.
         
+        Parses the 3GPP standard `+CEREG` response/URC.
+        
         Args:
-            urc (str): Optional URC will be queried if not provided
-
+            urc (str): Optional URC will be queried if not provided.
+        
+        Returns:
+            RegInfo registration metadata.
         """
         info = RegInfo()
         queried = False
@@ -431,18 +434,25 @@ class NbntnBaseModem(ABC):
         return info
     
     def get_regconfig(self) -> int:
-        """Get the registration reporting configuration."""
+        """Get the registration URC reporting configuration."""
         if self.send_command('AT+CEREG?') == AtErrorCode.OK:
             config = self.get_response('+CEREG:').split(',')[0]
             return int(config)
         return -1
     
     def set_regconfig(self, config: int) -> bool:
-        """Set the registration verbosity."""
+        """Set the registration URC verbosity."""
         if config not in range(0, 6):
             raise ValueError('Invalid CEREG config value')
         return self.send_command(f'AT+CEREG={config}') == AtErrorCode.OK
     
+    def get_rrc_state(self) -> bool:
+        """Get the perceived radio resource control connection status."""
+        connected = False
+        if self.send_command('AT+CSCON?') == AtErrorCode.OK:
+            connected = self.get_response('+CSCON:').split(',')[1] == '1'
+        return connected
+
     @abstractmethod
     def get_siginfo(self) -> SigInfo:
         """Get the signal information from the modem."""
@@ -479,6 +489,24 @@ class NbntnBaseModem(ABC):
                         info.rsrp = int(float(param) - 140)
         return info
     
+    def get_signal_quality(self, sinr: 'int|float|None' = None) -> SignalQuality:
+        """Get a qualitative indicator of 0..5 of satellite signal."""
+        if not isinstance(sinr, (int, float)):
+            sinr = self.get_siginfo().sinr
+        if sinr >= SignalLevel.INVALID.value:
+            return SignalQuality.WARNING
+        if sinr >= SignalLevel.BARS_5.value:
+            return SignalQuality.STRONG
+        if sinr >= SignalLevel.BARS_4.value:
+            return SignalQuality.GOOD
+        if sinr >= SignalLevel.BARS_3.value:
+            return SignalQuality.MID
+        if sinr >= SignalLevel.BARS_2.value:
+            return SignalQuality.LOW
+        if sinr >= SignalLevel.BARS_1.value:
+            return SignalQuality.WEAK
+        return SignalQuality.NONE
+
     def get_contexts(self) -> 'list[PdpContext]':
         """Get the list of configured PDP contexts in the modem."""
         contexts: 'list[PdpContext]' = []
@@ -525,7 +553,11 @@ class NbntnBaseModem(ABC):
         return self.send_command('AT+CFUN=1', timeout=30) == AtErrorCode.OK
     
     def get_psm_config(self) -> PsmConfig:
-        """Get the Power Save Mode settings."""
+        """Get the Power Save Mode settings.
+        
+        Returns the configured/requested settings, which may not be granted.
+        For granted/actual, use `RegInfo.get_psm_granted()`
+        """
         config = PsmConfig()
         if self.send_command('AT+CPSMS?') == AtErrorCode.OK:
             psm_parts = self.get_response('+CPSMS:').split(',')
@@ -540,7 +572,14 @@ class NbntnBaseModem(ABC):
         return config
     
     def set_psm_config(self, psm: 'PsmConfig|None' = None) -> bool:
-        """Configure requested Power Saving Mode settings"""
+        """Configure requested Power Saving Mode settings.
+        
+        The configured values are requested but not necessarily granted by the
+        network during registration/TAU.
+        
+        Args:
+            psm (PsmConfig): The requested PSM configuration.
+        """
         if psm and not isinstance(psm, PsmConfig):
             raise ValueError('Invalid PSM configuration')
         mode = 0 if psm is None else 1
@@ -550,7 +589,11 @@ class NbntnBaseModem(ABC):
         return self.send_command(cmd) == AtErrorCode.OK
 
     def get_edrx_config(self) -> EdrxConfig:
-        """Get the eDRX mode settings."""
+        """Get the Extended Discontinuous Receive (eDRX) mode settings.
+        
+        Returns the configured/requested values, which may not be granted.
+        To determine granted/actual values use `get_edrx_dynamic()`
+        """
         config = EdrxConfig()
         if self.send_command('AT+CEDRXS?') == AtErrorCode.OK:
             edrx_parts = self.get_response('+CEDRXS:').split(',')
@@ -564,7 +607,13 @@ class NbntnBaseModem(ABC):
         return config
     
     def set_edrx_config(self, edrx: 'EdrxConfig|None' = None) -> bool:
-        """Configure requested Power Saving Mode settings"""
+        """Configure requested Extended Discontinuous Receive (eDRX) settings.
+        
+        The requested values may not be granted by the network.
+        
+        Args:
+            edrx (EdrxConfig): The requested eDRX configuration.
+        """
         if edrx and not isinstance(edrx, EdrxConfig):
             raise ValueError('Invalid eDRX configuration')
         mode = 0 if edrx is None else 2
@@ -601,7 +650,7 @@ class NbntnBaseModem(ABC):
 
     @abstractmethod
     def get_frequency(self) -> int:
-        """Get the current frequency in use if camping on a cell."""
+        """Get the current frequency (EARFCN) in use if camping on a cell."""
         _log.warning('No module-specific subclass - returning -1')
         return -1
     
@@ -619,6 +668,8 @@ class NbntnBaseModem(ABC):
     def get_last_error(self, **kwargs) -> int:
         """Get the error code of the prior errored command.
         
+        Keyword args allow modem-specific parameters.
+        
         Args:
             failed_op (str): The type of operation that failed.
         
@@ -632,13 +683,27 @@ class NbntnBaseModem(ABC):
     def enable_nidd_urc(self, enable: bool = True, **kwargs) -> bool:
         """Enable unsolicited reporting of received Non-IP data.
         
-        Downlink/MT message data received via control plane.
+        Message data is exchanged via control plane.
+        Keyword arguments allow modem-specific options.
+        
+        Args:
+            enable (bool): Enable or disable URC reports for NIDD messages.
         """
         return self.send_command(f'AT+CRTDCP={int(enable)}') == AtErrorCode.OK
 
     @abstractmethod
     def send_message_nidd(self, message: bytes, cid: int = 1, **kwargs) -> 'MoMessage|None':
-        """Send a message using Non-IP transport."""
+        """Send a message using Non-IP Data Delivery.
+        
+        Keyword arguments allows for device-specific parameters.
+        
+        Args:
+            message (bytes): The message content/payload.
+            cid (int): The (PDP/PDN) context ID to use.
+        
+        Returns:
+            MoMessage object with optional metadata.
+        """
         _log.warning('Sending NIDD message without confirmation')
         cmd = f'AT+CSODCP={cid},{len(message)},"{message.hex()}"'
         if self.send_command(cmd) == AtErrorCode.OK:
@@ -797,35 +862,11 @@ class NbntnBaseModem(ABC):
                 _log.info('%s => %s', cmd, dprint(self.get_response()))
             else:
                 _log.error('Failed to query %s (ErrorCode: %d)', cmd, res)
+
+
+class DefaultModem(NbntnBaseModem):
+    """A generic modem supporting the basic 3GPP AT commands."""
     
-    def get_rrc_state(self) -> bool:
-        """Get the perceived radio resource control connection status."""
-        connected = False
-        if self.send_command('AT+CSCON?') == AtErrorCode.OK:
-            connected = self.get_response('+CSCON:').split(',')[1] == '1'
-        return connected
-
-    def get_signal_quality(self, sinr: 'int|float|None' = None) -> SignalQuality:
-        """Get a qualitative indicator of 0..5 of satellite signal."""
-        if not isinstance(sinr, (int, float)):
-            sinr = self.get_siginfo().sinr
-        if sinr >= SignalLevel.INVALID.value:
-            return SignalQuality.WARNING
-        if sinr >= SignalLevel.BARS_5.value:
-            return SignalQuality.STRONG
-        if sinr >= SignalLevel.BARS_4.value:
-            return SignalQuality.GOOD
-        if sinr >= SignalLevel.BARS_3.value:
-            return SignalQuality.MID
-        if sinr >= SignalLevel.BARS_2.value:
-            return SignalQuality.LOW
-        if sinr >= SignalLevel.BARS_1.value:
-            return SignalQuality.WEAK
-        return SignalQuality.NONE
-
-
-class NbntnModem(NbntnBaseModem):
-    """A generic modem supporting the basic AT commands."""
     def initialize_ntn(self, **kwargs):
         return super().initialize_ntn(**kwargs)
     
@@ -919,7 +960,7 @@ def is_valid_hostname(hostname) -> bool:
         return False
     if hostname[-1] == '.':
         hostname = hostname[:-1]
-    allowed = re.compile('(?!-)[A-Z\d-]{1,63}(?<!-)$', re.IGNORECASE)
+    allowed = re.compile(r'(?!-)[A-Z\d-]{1,63}(?<!-)$', re.IGNORECASE)
     return all(allowed.match(x) for x in hostname.split('.'))
 
 

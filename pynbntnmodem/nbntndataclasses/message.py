@@ -6,7 +6,7 @@ and determination of packet size.
 
 import ipaddress
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Union
 
 from pynbntnmodem.constants import PdpType
 
@@ -16,6 +16,7 @@ __all__ = [ 'BaseMessage', 'MoMessage', 'MtMessage' ]
 class BaseMessage:
     payload: bytes
     transport: PdpType
+    id: Optional[Union[int, str]] = None
     
     @property
     def size(self) -> int:

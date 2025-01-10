@@ -4,7 +4,7 @@ import os
 import pytest
 
 from pyatcommand import AtErrorCode, AtTimeout
-from pynbntnmodem import (NbntnBaseModem, NbntnModem, clone_and_load_modem_classes)
+from pynbntnmodem import (NbntnBaseModem, DefaultModem, clone_and_load_modem_classes)
 
 test_log = logging.getLogger(__name__)
 
@@ -12,7 +12,7 @@ test_log = logging.getLogger(__name__)
 def test_basic(caplog):
     """"""
     caplog.set_level('INFO')
-    modem = NbntnModem()
+    modem = DefaultModem()
     modem.connect()
     assert modem.is_connected()
     modem.report_debug()
@@ -57,7 +57,7 @@ def test_initialize_ntn_with_retry(caplog):
             'why': 'try get response in quiet mode'
         },
     ]
-    modem = NbntnModem()
+    modem = DefaultModem()
     modem.connect()
     assert modem.is_connected()
     assert modem.initialize_ntn(ntn_init=test_init) is False

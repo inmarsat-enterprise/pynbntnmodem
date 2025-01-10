@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from typing import Optional, Callable, Iterable, List
 
 from pyatcommand import AtErrorCode
+from pyatcommand.constants import AT_TIMEOUT, AT_URC_TIMEOUT
 
 
 @dataclass
@@ -58,13 +59,15 @@ class NtnInitUrc:
         timeout (float): The maximum time in seconds to wait for the URC.
     """
     urc: str
-    timeout: Optional[float] = None
+    timeout: float = AT_URC_TIMEOUT
     
     def __post_init__(self):
         if not isinstance(self.urc, str) or not self.urc:
             raise ValueError('Invalid URC string')
-        if self.timeout is not None and not isinstance(self.timeout, float):
+        if not isinstance(self.timeout, float):
             self.timeout = float(self.timeout)
+        if self.timeout <= 0:
+            raise ValueError('URC timeout must be > 0')
 
 
 @dataclass
@@ -100,7 +103,7 @@ class NtnInitCommand:
         why (str): Reason why this operation is performed. Used for debug.
         cmd (str): The AT command to send. Special keys within the string
             are `<pdn_type>`, `<apn>`.
-        res (AtErrorCode): The expected result code.
+        res (AtErrorCode): The expected result code (default `OK`).
         timeout (float): The maximum number of seconds to wait for result.
         gpio (NtnHardwareAssert): Optional instruction of a GPIO handle to assert.
         delay (float): Optional delay seconds before sending `cmd`.
@@ -109,8 +112,8 @@ class NtnInitCommand:
     """
     why: str
     cmd: str = ''
-    res: Optional[AtErrorCode] = None
-    timeout: Optional[float] = None
+    res: Optional[AtErrorCode] = AtErrorCode.OK
+    timeout: Optional[float] = AT_TIMEOUT
     gpio: Optional[NtnHardwareAssert] = None
     delay: Optional[float] = None
     retry: Optional[NtnInitRetry] = None
@@ -128,6 +131,8 @@ class NtnInitCommand:
                 self.timeout = float(self.timeout)
             if self.timeout < 0:
                 raise ValueError('Invalid timeout must be >= 0')
+        elif self.res:
+            raise ValueError('Expected res must be None if timeout is None')
         if self.gpio is not None and not isinstance(self.gpio, NtnHardwareAssert):
             raise ValueError('Invalid GPIO NtnHardwareAssert')
         if self.delay is not None and not isinstance(self.delay, float):
