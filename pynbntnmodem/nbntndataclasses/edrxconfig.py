@@ -40,6 +40,8 @@ class EdrxConfig:
         Raises:
             `ValueError` if the bitmask is invalid.
         """
+        if not bitmask:
+            return 0
         if len(bitmask) != 4 or not all(b in '01' for b in bitmask):
             raise ValueError('Invalid bitmask must be 8 binary values')
         try:
@@ -85,6 +87,8 @@ class EdrxConfig:
         Raises:
             `ValueError` if the bitmask is invalid.
         """
+        if not bitmask:
+            return 0
         if len(bitmask) != 4 or not all(b in '01' for b in bitmask):
             raise ValueError('Invalid bitmask must be 8 binary values')
         try:
