@@ -35,30 +35,28 @@ def clone_and_load_modem_classes(repo_urls: 'list[str]',
         for repo_url in repo_urls:
             repo_name = repo_url.split("/")[-1].replace(".git", "")
             repo_path = os.path.join(temp_dir, repo_name)
-
-            _log.debug("Cloning repository %s into %s...", repo_url, repo_path)
+            _log.debug("Cloning git repository into %s...", repo_path)
             result = subprocess.run(
                 ["git", "clone", "--branch", branch, repo_url, repo_path],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
             )
-
             if result.returncode != 0:
                 _log.error("Failed to clone repository %s: %s",
                            repo_url, result.stderr)
                 continue
 
-            _log.debug("Repository %s cloned successfully.", repo_url)
+            _log.debug("Git repository %s cloned successfully.", repo_name)
 
             # Find Python files in the repository and load modem classes
             for root, _, files in os.walk(repo_path):
                 for file in files:
                     if file.endswith(".py"):
                         file_path = os.path.join(root, file)
-                        class_name = load_modem_class(file_path)
-                        if class_name:
-                            modem_classes[class_name.__name__] = class_name
+                        class_def = load_modem_class(file_path)
+                        if class_def:
+                            modem_classes[file.replace('.py', '')] = class_def
                             if download_path and os.path.isdir(download_path):
                                 dest_path = os.path.join(download_path, file)
                                 shutil.copy(file_path, dest_path)

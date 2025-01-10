@@ -2,39 +2,60 @@ import logging
 import os
 
 import pytest
-
 from pyatcommand import AtErrorCode, AtTimeout
-from pynbntnmodem import (NbntnBaseModem, DefaultModem, clone_and_load_modem_classes)
+
+from pynbntnmodem import (
+    DefaultModem,
+    NbntnBaseModem,
+    ModuleManufacturer,
+    ModuleModel,
+    clone_and_load_modem_classes,
+    get_model,
+)
 
 test_log = logging.getLogger(__name__)
 
 
-def test_basic(caplog):
-    """"""
-    caplog.set_level('INFO')
-    modem = DefaultModem()
+@pytest.fixture
+def generic_modem():
+    return DefaultModem(apn=os.getenv('TEST_APN', 'viasat.poc'))
+
+
+@pytest.mark.skip
+def test_detect(generic_modem: DefaultModem):
+    modem = generic_modem
     modem.connect()
-    assert modem.is_connected()
+    model = get_model(modem._serial)
+    assert model.name == DefaultModem.model_name()
+
+
+def test_init(generic_modem: DefaultModem):
+    modem = generic_modem
+    modem.connect()
+    assert modem.initialize_ntn() is True
+
+
+def test_debug(generic_modem: DefaultModem, caplog):
+    caplog.set_level('DEBUG')
+    modem = generic_modem
+    modem.connect()
     modem.report_debug()
-    debug_commands = [   # Base commands are 3GPP TS 27.007
-        'ATI',   # module information
-        'AT+CGMR',   # firmware/revision
-        'AT+CIMI',   # IMSI
-        'AT+CGSN=1',   # IMEI
-        'AT+CFUN?',   # Module radio function configured
-        'AT+CEREG?',   # Registration status and URC config
-        'AT+CGDCONT?',   # PDP/PDN Context configuration
-        'AT+CGPADDR?',   # IP address assigned by network
-        'AT+CPSMS?',   # Power saving mode settings (requested)
-        'AT+CEDRXS?',   # eDRX settings (requested)
-        'AT+CEDRXRDP',   # eDRX dynamic parameters
-        'AT+CRTDCP?',   # Reporting of terminating data via control plane
-        'AT+CSCON?',   # Signalling connection status
-        'AT+CESQ',   # Signal quality including RSRQ indexed from 0 = -19.5 in 0.5dB increments, RSRP indexed from 0 = -140 in 1 dBm increments
+    success_str = ' => '
+    fail_str = 'Failed to query'
+    successes = []
+    failures = []
+    for record in caplog.records:
+        if success_str in record.message:
+            successes.append(record.message.split(success_str)[0])
+        elif fail_str in record.message:
+            failures.append(record.message.split(fail_str)[1])
+    remove_failures = [
+        '+CGPADDR?',   # IP address may not be assigned yet
     ]
-    for cmd in debug_commands:
-        assert f'{cmd} =>' in caplog.text or f'Failed to query {cmd}' in caplog.text
-    modem.disconnect()
+    failures = [f for f in failures if not any(r in f for r in remove_failures)]
+    for failure in failures:
+        test_log.error(failure)
+    assert len(failures) == 0
 
 
 # TODO: parameterize with ATQ as timeout vs nonsense command as error
@@ -74,18 +95,29 @@ def test_repo_import():
     if token:
         token += '@'
     repo_names = os.getenv('REPO_NAMES', '').split(',')
-    repo_urls = [f'https://{token}github.com/inmarsat-enterprise/nbntn-{rn}.git'
+    for i, repo_name in enumerate(repo_names):
+        if not repo_name.startswith('nbntn-'):
+            repo_names[i] = f'nbntn-{repo_name}'
+        if repo_name.endswith('.git'):
+            repo_names[i] = repo_names[i][:-4]
+    repo_urls = [f'https://{token}github.com/inmarsat-enterprise/{rn}.git'
                  for rn in repo_names]
     branch = os.getenv('REPO_BRANCH', 'main')
-
+    download_path = os.path.join(os.getcwd(), 'test')
     try:
-        modem_classes = clone_and_load_modem_classes(repo_urls, branch)
+        modem_classes = clone_and_load_modem_classes(repo_urls, branch, download_path)
         test_log.info('Loaded modem classes: %s', list(modem_classes.keys()))
-
         # Instantiate and use a modem class (example)
         for name, ModemClass in modem_classes.items():
-            assert name.replace('_', '-') in repo_names
-            assert issubclass(ModemClass(), NbntnBaseModem)
+            assert any(name.upper().startswith(mfr)
+                       for mfr in ModuleManufacturer.__members__.keys())
+            assert any(name.upper().endswith(mdl)
+                       for mdl in ModuleModel.__members__.keys())
+            assert issubclass(ModemClass, NbntnBaseModem)
+            if download_path:
+                filename = os.path.join(download_path, f'{name}.py')
+                assert os.path.isfile(filename)
+                os.remove(filename)
     except Exception as e:
         test_log.error(f"Error: {e}")
         assert e is None
