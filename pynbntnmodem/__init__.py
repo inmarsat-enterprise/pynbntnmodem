@@ -18,6 +18,7 @@ from .constants import (
 )
 from .nbntndataclasses import (
     EdrxConfig,
+    MoMessage,
     MtMessage,
     NtnLocation,
     PdpContext,
@@ -52,6 +53,7 @@ __all__ = [
     'GnssFixType',
     'ModuleManufacturer',
     'ModuleModel',
+    'MoMessage',
     'MtMessage',
     'NbntnBaseModem',
     'DefaultModem',
