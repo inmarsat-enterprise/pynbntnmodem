@@ -379,7 +379,7 @@ class NbntnBaseModem(ABC):
         raise NotImplementedError('Requires module-specfic subclass')
 
     @abstractmethod
-    def get_location(self) -> NtnLocation:
+    def get_location(self) -> 'NtnLocation|None':
         """Get the location currently in use by the modem."""
         raise NotImplementedError('Requires module-specific subclass')
     
