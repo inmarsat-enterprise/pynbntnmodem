@@ -370,8 +370,8 @@ class NbntnBaseModem(ABC):
         
         International Mobile Equipment Identity
         """
-        if self.send_command('AT+CGSN=1') == AtErrorCode.OK:
-            return self.get_response('+CGSN:').replace('"', '')
+        if self.send_command('AT+CGSN') == AtErrorCode.OK:
+            return self.get_response()
         return ''
     
     def use_ignss(self, enable: bool = True, **kwargs) -> bool:
@@ -942,7 +942,7 @@ def get_model(serial: AtClient) -> ModuleModel:
             if 'cc660' in res.lower():
                 return ModuleModel.CC660D
             if 'bg95' in res.lower():
-                return ModuleModel.BG95
+                return ModuleModel.BG95S5
         elif 'murata' in res.lower():
             if '1sc' in res.lower():
                 return ModuleModel.TYPE1SC
