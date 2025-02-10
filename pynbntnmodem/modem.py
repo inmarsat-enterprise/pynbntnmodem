@@ -803,7 +803,7 @@ class NbntnBaseModem(ABC):
         """Get MT/downlink data received over UDP.
         
         Args:
-            **cid (int): Context/session ID
+            cid (int): Context/session ID (default 1)
             **urc (str): URC output including hex payload
             **size (int): Maximum bytes to read (default 256)
             **include_meta (bool): If True returns `MtMessage` otherwise returns
@@ -811,7 +811,7 @@ class NbntnBaseModem(ABC):
         
         Returns:
             `bytes` by default or a `MtMessage` structure with `payload` and
-                IP address/port
+                IP address/port, or `None` if no data was received
         """
         raise NotImplementedError('Requires module-specific subclass')
     
