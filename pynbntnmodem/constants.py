@@ -3,6 +3,9 @@
 from enum import Enum, IntEnum
 
 
+NBNTN_MAX_MSG_SIZE = 256
+
+
 class ChipsetManufacturer(IntEnum):
     """Supported chipset manufacturers."""
     UNKNOWN = 0
