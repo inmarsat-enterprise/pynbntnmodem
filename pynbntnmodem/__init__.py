@@ -15,6 +15,7 @@ from .constants import (
     UrcType,
     SignalLevel,
     SignalQuality,
+    NBNTN_MAX_MSG_SIZE,
 )
 from .nbntndataclasses import (
     EdrxConfig,
@@ -43,8 +44,10 @@ from .modem_loader import (
     clone_and_load_modem_classes,
     load_modem_class,
 )
+from .udpsocket import UdpSocketBridge
 
 __all__ = [
+    'NBNTN_MAX_MSG_SIZE',
     'Chipset',
     'ChipsetManufacturer',
     'EdrxConfig',
@@ -78,4 +81,5 @@ __all__ = [
     'NtnInitUrc',
     'clone_and_load_modem_classes',
     'load_modem_class',
+    'UdpSocketBridge',
 ]
