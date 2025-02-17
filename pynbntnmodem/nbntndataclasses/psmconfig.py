@@ -19,6 +19,7 @@ from pynbntnmodem.constants import ActMultiplier, TauMultiplier
 @dataclass
 class PsmConfig:
     """Power Saving Mode configuration attributes."""
+    enabled: bool = False
     tau_t3412_bitmask: str = ''   # TAU timer - when the modem updates its location
     act_t3324_bitmask: str = ''   # Activity timer - how long the modem stays awake after TAU
     
