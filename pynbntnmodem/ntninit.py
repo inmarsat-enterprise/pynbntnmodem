@@ -87,12 +87,14 @@ class NtnInitCommand:
         why (str): Reason why this operation is performed. Used for debug.
         cmd (str): The AT command to send. Special keys within the string
             are `<pdn_type>`, `<apn>` which will be substituted.
-        res (AtErrorCode): The expected result code (default `OK`).
-        timeout (float): The maximum number of seconds to wait for result.
-        gpio (NtnHardwareAssert): Optional instruction of a GPIO handle to assert.
-        delay (float): Optional delay seconds before sending `cmd`.
-        retry (NtnInitRetry): Optional retry parameters.
-        urc (NtnInitUrc): Optional triggered URC parameters.
+        res (AtErrorCode|None): The expected result code (default `OK`). May be
+            specified as `None` which accepts any response.
+        timeout (float|None): The maximum number of seconds to wait for result.
+        gpio (NtnHardwareAssert|None): Optional instruction of a GPIO handle to 
+            assert.
+        delay (float|None): Optional delay seconds before sending `cmd`.
+        retry (NtnInitRetry|None): Optional retry parameters.
+        urc (NtnInitUrc|None): Optional triggered URC parameters.
     """
     why: str
     cmd: str = ''
