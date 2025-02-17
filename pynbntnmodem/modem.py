@@ -265,7 +265,10 @@ class NbntnBaseModem(ABC):
                 ntn_init = NtnInitSequence.from_list_of_dict(ntn_init)
             except Exception as exc:
                 raise ValueError('Invalid NtnInitSequence') from exc
+        if len(ntn_init) == 0:
+            raise ValueError('No initialization steps configured')
         sequence_step = 0
+        step_success = False
         for step in ntn_init:
             sequence_step += 1
             if step.delay:
@@ -295,7 +298,7 @@ class NbntnBaseModem(ABC):
             while not step_success:
                 try:
                     res = self.send_command(at_cmd, timeout=step.timeout)
-                    if res == step.res:
+                    if step.res is None or res == step.res:
                         step_success = True
                     else:
                         raise ValueError(f'Expected {step.res.name} but got {res.name}')
@@ -309,14 +312,16 @@ class NbntnBaseModem(ABC):
                     if step.retry:
                         if step.retry.count > 0:
                             if attempt >= step.retry.count:
-                                break
+                                break   # while not step_success loop
                             if step.retry.delay:
                                 _log.warning('Init retry %s in %0.1f seconds',
                                              step.cmd, step.retry.delay)
                                 time.sleep(step.retry.delay)
                         attempt += 1
                     else:
-                        break
+                        break   # while not step_success loop
+            if not step_success:
+                break   # step loop
             if self._serial.is_response_ready():   # clear response for next step
                 init_res = self._serial.get_response()
                 if init_res:
@@ -329,7 +334,8 @@ class NbntnBaseModem(ABC):
                 urc = self.await_urc(expected, **urc_kwargs)
                 if urc != expected:
                     _log.error('Received %s but expected %s', urc, expected)
-                    break
+                    break   # step loop
+                step_success = True
         if sequence_step != len(ntn_init):
             _log.error('NTN initialization failed at step %d (%s)',
                        sequence_step, ntn_init[sequence_step - 1].cmd)
@@ -564,6 +570,8 @@ class NbntnBaseModem(ABC):
                 param = param.replace('"', '')
                 if not param:
                     continue
+                if i == 0:
+                    config.enabled = param == '1'
                 if i == 3:
                     config.tau_t3412_bitmask = param
                 elif i == 4:
@@ -948,6 +956,9 @@ def get_model(serial: AtClient) -> ModuleModel:
                 return ModuleModel.TYPE1SC
         elif 'HL781' in res:
             return ModuleModel.HL781X
+        elif 'telit' in res.lower():
+            if 'ME910G1' in res:
+                return ModuleModel.ME910G1
         _log.warning('Unsupported model: %s', res)
         return ModuleModel.UNKNOWN
     raise OSError('Unable to get modem information')
