@@ -25,6 +25,7 @@ class NtnLocation:
         lon_deg (float): The longitude in degrees.
         alt_m (float): The altitude in meters.
         spd_mps (float): The speed in meters per second.
+        cog_deg (float): Course Over Ground in degrees (from North).
         cep_rms (int): The Circular Error Probability Root Mean Squared.
         opmode (NtnOpMode): The operating mode mobile/stationary.
         fix_type (GnssFixType): The GNSS fix type.
@@ -37,6 +38,7 @@ class NtnLocation:
     lon_deg: Optional[float] = None
     alt_m: Optional[float] = None
     spd_mps: Optional[float] = None
+    cog_deg: Optional[float] = None
     cep_rms: Optional[int] = None
     opmode: Optional[NtnOpMode] = None
     fix_type: Optional[GnssFixType] = None
