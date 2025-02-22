@@ -193,7 +193,12 @@ class NbntnBaseModem(ABC):
     @property
     def ip_address(self) -> str:
         ip_address = ''
-        if self.send_command('AT+CGDCONT?') == AtErrorCode.OK:
+        if self.send_command('AT+CGPADDR') == AtErrorCode.OK:
+            res = self.get_response().split('\n')
+            if len(res) > 1:
+                _log.warning('%d IP addresses returned', len(res))
+            ip_address = res[0].split(',')[-1]
+        elif self.send_command('AT+CGDCONT?') == AtErrorCode.OK:
             params = self.get_response('+CGDCONT:').split(',')
             for i, param in enumerate(params):
                 param = param.replace('"', '')
