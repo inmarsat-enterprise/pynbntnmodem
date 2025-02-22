@@ -853,11 +853,11 @@ class NbntnBaseModem(ABC):
             'ATI',   # module information
             'AT+CGMR',   # firmware/revision
             'AT+CIMI',   # IMSI
-            'AT+CGSN=1',   # IMEI
+            'AT+CGSN',   # IMEI
             'AT+CFUN?',   # Module radio function configured
             'AT+CEREG?',   # Registration status and URC config
             'AT+CGDCONT?',   # PDP/PDN Context configuration
-            'AT+CGPADDR?',   # IP address assigned by network
+            'AT+CGPADDR',   # IP address(es) assigned by network
             'AT+CPSMS?',   # Power saving mode settings (requested)
             'AT+CEDRXS?',   # eDRX settings (requested)
             'AT+CEDRXRDP',   # eDRX dynamic parameters
