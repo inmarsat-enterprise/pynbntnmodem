@@ -644,7 +644,6 @@ class NbntnBaseModem(ABC):
                     dynamic.ptw_bitmask = param
         return dynamic
     
-    @abstractmethod
     def use_lband(self) -> bool:
         """Restrict network scans to L-band 255."""
         # TODO: deprecate in favour of set_bands
@@ -905,11 +904,11 @@ class DefaultModem(NbntnBaseModem):
     def get_siginfo(self):
         return super().get_siginfo()
     
-    def use_lband(self):
-        return super().use_lband()
-    
     def get_band(self):
         return super().get_band()
+    
+    def set_bands(self, bands):
+        return super().set_bands(bands)
     
     def get_frequency(self):
         return super().get_frequency()
