@@ -647,6 +647,7 @@ class NbntnBaseModem(ABC):
     @abstractmethod
     def use_lband(self) -> bool:
         """Restrict network scans to L-band 255."""
+        # TODO: deprecate in favour of set_bands
         raise NotImplementedError('Requires module-specific subclass')
         
     @abstractmethod
@@ -654,6 +655,15 @@ class NbntnBaseModem(ABC):
         """Get the current LTE band in use."""
         _log.warning('No module-specific subclass - returning -1')
         return -1
+
+    @abstractmethod
+    def set_bands(self, bands: 'list[int]') -> bool:
+        """Set the list of bands to scan.
+        
+        Args:
+            bands (list[int]): The list of LTE band numbers to scan.
+        """
+        raise NotImplementedError('Requires module-specific subclass')
 
     @abstractmethod
     def get_frequency(self) -> int:
