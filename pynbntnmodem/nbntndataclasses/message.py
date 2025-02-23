@@ -55,4 +55,4 @@ class MoMessage(BaseMessage):
 class MtMessage(BaseMessage):
     """Metadata for Mobile-Terminated message including payload and source"""
     src_ip: Optional[str] = None
-    src_port: Optional[int] = None
+    dst_port: Optional[int] = None
