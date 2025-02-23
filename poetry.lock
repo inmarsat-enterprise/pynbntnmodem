@@ -134,13 +134,13 @@ testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
 name = "pyatcommand"
-version = "0.3.14"
+version = "0.3.15"
 description = "An interface for V.25 Hayes AT commands"
 optional = false
 python-versions = "<4.0,>=3.9"
 files = [
-    {file = "pyatcommand-0.3.14-py3-none-any.whl", hash = "sha256:1ee3cf789cc7dcd665ca890b5fecc8e67a76f1988683345d8483118a565ad5fe"},
-    {file = "pyatcommand-0.3.14.tar.gz", hash = "sha256:7b39e372c8b7914d2793dea4287d2f5a3a7436a54a3ebdf86479c227346d96a4"},
+    {file = "pyatcommand-0.3.15-py3-none-any.whl", hash = "sha256:7583cabb1434a4fd9879ca0394c37a0275f467bb997437b1c9efc1f473ea9f82"},
+    {file = "pyatcommand-0.3.15.tar.gz", hash = "sha256:af28493e6ef26d337a74a74d7409e04d17036f1f072238347be80664aa0810ce"},
 ]
 
 [package.dependencies]
