@@ -688,8 +688,21 @@ class NbntnBaseModem(ABC):
             return UrcType.REGISTRATION
         if urc.startswith('+CRTDCP:'):
             return UrcType.NIDD_MT_RCVD
+        if urc.startswith('+CSCON:'):
+            return UrcType.RRC_STATE
         return UrcType.UNKNOWN
 
+    def inject_urc(self, urc: str) -> bool:
+        """Injects a URC string into the AtClient unsolicited queue.
+        
+        Used for custom events e.g. message send complete without native URC.
+        """
+        if not urc.startswith('\r\n') or not urc.endswith('\r\n'):
+            _log.warning('URC injection without header/trailer')
+        else:
+            _log.debug('Injecting URC: %s', dprint(urc))
+        self._serial._unsolicited_queue.put(urc)
+    
     def get_last_error(self, **kwargs) -> int:
         """Get the error code of the prior errored command.
         
