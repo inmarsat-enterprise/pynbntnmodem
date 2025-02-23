@@ -349,7 +349,15 @@ class NbntnBaseModem(ABC):
         return True
     
     def await_urc(self, urc: str = '', **kwargs) -> str:
-        """Wait for an unsolicited result code or timeout."""
+        """Wait for an unsolicited result code or timeout.
+        
+        Args:
+            **timeout (float): Maximum time in seconds to wait for URC.
+            **prefixes (list[str]): Additional URC prefixes to consider.
+        
+        Returns:
+            The awaited URC or an empty string if it timed out.
+        """
         timeout = float(kwargs.get('timeout', 0))
         _log.debug('Waiting for unsolicited %s (timeout: %s)', urc, timeout)
         prefixes = kwargs.get('prefixes', ['+', '%'])
