@@ -47,10 +47,15 @@ for mod in iter_modules(modems.__path__):
 ## Common Workflow
 
 * **`connect()`** using either `.env` variables, default or programmatic values
-
 for `SERIAL_PORT`/`port` and `SERIAL_BAUDRATE`/`baudrate`.
 
 * **`initialize_ntn()`** to run the modem-specific configuration sequence
 
 * Run a loop that continually runs `check_urc()`, queues and then processes
 each `get_urc_type()`
+
+## URC injection
+
+Some modems do not emit any URC on important events such as the completion of
+a MO message sending. In such cases the `inject_urc()` method is provided to
+simulate a modem-generated URC.
