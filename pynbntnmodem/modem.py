@@ -321,6 +321,8 @@ class NbntnBaseModem(ABC):
             step_success = False
             while not step_success:
                 try:
+                    if step.timeout == AT_TIMEOUT:
+                        step.timeout = self._command_timeout
                     res = self.send_command(at_cmd, timeout=step.timeout)
                     if step.res is None or res == step.res:
                         step_success = True
