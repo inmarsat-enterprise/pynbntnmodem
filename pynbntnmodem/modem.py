@@ -8,6 +8,7 @@ import time
 
 from abc import ABC, abstractmethod
 from pyatcommand import AtClient, AtErrorCode, AtTimeout
+from pyatcommand.constants import AT_TIMEOUT
 from pyatcommand.utils import dprint
 
 from .constants import (
@@ -42,6 +43,8 @@ __all__ = [
 ]
 
 _log = logging.getLogger(__name__)
+
+_sentinel = object()
 
 
 class NbntnBaseModem(ABC):
@@ -82,6 +85,7 @@ class NbntnBaseModem(ABC):
         self._udp_server_port: int = 0
         if kwargs.get('udp_port') is not None:
             self.udp_server_port = kwargs.get('udp_port')
+        self._command_timeout: float = AT_TIMEOUT   # modem-specific default
     
     def get_at_client(self) -> AtClient:
         """Get the AtClient interface"""
@@ -112,8 +116,23 @@ class NbntnBaseModem(ABC):
         self._serial.disconnect()
         self._version = ''
 
-    def send_command(self, at_command: str, timeout: float = 1) -> AtErrorCode:
-        """Send an arbitrary AT command and get the result code."""
+    def send_command(self, at_command: str, timeout: 'float|None' = _sentinel) -> AtErrorCode:
+        """Send an arbitrary AT command and get the result code.
+        
+        Response values are obtained from a follow-up `get_response()`
+        
+        Args:
+            at_command (str): The AT command to send.
+            timeout (float|None): The maximum time to wait for a result in
+                seconds. `None` returns immediately with `AtErrorCode.PENDING`.
+                Default uses the `_command_timeout` attribute or the environment
+                value `AT_TIMEOUT` (default 0.3).
+            
+        Returns:
+            `AtErrorCode`
+        """
+        if timeout is _sentinel:
+            timeout = self._command_timeout
         return self._serial.send_at_command(at_command, timeout)
     
     def get_response(self, prefix: str = '') -> 'str|None':
