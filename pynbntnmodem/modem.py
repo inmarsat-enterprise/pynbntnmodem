@@ -1003,6 +1003,8 @@ def get_model(serial: AtClient) -> ModuleModel:
                 return ModuleModel.CC660D
             if 'bg95' in res.lower():
                 return ModuleModel.BG95S5
+            if 'bg770' in res.lower():
+                return ModuleModel.BG770ASN
         elif 'murata' in res.lower():
             if '1sc' in res.lower():
                 return ModuleModel.TYPE1SC
