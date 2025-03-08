@@ -20,6 +20,8 @@ from .constants import (
     SignalLevel,
     SignalQuality,
     UrcType,
+    RadioAccessTechnology,
+    RrcState,
 )
 from .nbntndataclasses import (
     EdrxConfig,
@@ -414,9 +416,29 @@ class NbntnBaseModem(ABC):
             return self.get_response()
         return ''
     
+    def enable_radio(self, enable: bool = True, **kwargs) -> bool:
+        """Enable or disable the radio.
+        
+        Some radios may take several seconds to respond.
+        
+        Args
+            enable (bool): The setting to apply.
+            **timeout (float): Optional timeout if non-default.
+        """
+        cmd = f'AT+CFUN={int(enable)}'
+        return self.send_command(cmd, **kwargs) == AtErrorCode.OK
+    
     def use_ignss(self, enable: bool = True, **kwargs) -> bool:
         """Use the internal GNSS for NTN network registration."""
         raise NotImplementedError('Requires module-specfic subclass')
+    
+    def get_rat(self) -> RadioAccessTechnology:
+        """Get the current Radio Access Technology."""
+        raise NotImplementedError('Requires module-specific subclass')
+    
+    def set_rat(self, rat: RadioAccessTechnology = RadioAccessTechnology.NBNTN):
+        """Set the Radio Access Technology to use."""
+        raise NotImplementedError('Requires module-specific subclass')
 
     @abstractmethod
     def get_location(self) -> 'NtnLocation|None':
@@ -485,12 +507,11 @@ class NbntnBaseModem(ABC):
             raise ValueError('Invalid CEREG config value')
         return self.send_command(f'AT+CEREG={config}') == AtErrorCode.OK
     
-    def get_rrc_state(self) -> bool:
+    def get_rrc_state(self) -> RrcState:
         """Get the perceived radio resource control connection status."""
-        connected = False
         if self.send_command('AT+CSCON?') == AtErrorCode.OK:
-            connected = self.get_response('+CSCON:').split(',')[1] == '1'
-        return connected
+            return RrcState(int(self.get_response('+CSCON:').split(',')[1]))
+        return RrcState.UNKNOWN
 
     @abstractmethod
     def get_siginfo(self) -> SigInfo:
