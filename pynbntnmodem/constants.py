@@ -86,9 +86,12 @@ class RrcState(IntEnum):
 
 
 class RadioAccessTechnology(IntEnum):
-    NBNTN = 0
-    NBIOT = 1
-    CATM = 2
+    UNKNOWN = -1
+    GPRS = 0
+    CATM = 1
+    NBIOT = 2
+    BIS = 3
+    NBNTN = 4
 
 
 class TransportType(IntEnum):
