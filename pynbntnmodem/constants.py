@@ -3,7 +3,7 @@
 from enum import Enum, IntEnum
 
 
-NBNTN_MAX_MSG_SIZE = 256
+NBNTN_MAX_MSG_SIZE = 1200
 
 
 class ChipsetManufacturer(IntEnum):
@@ -77,6 +77,18 @@ class GnssFixType(IntEnum):
     INVALID = 0
     GNSS = 1
     DGNSS = 2
+
+
+class RrcState(IntEnum):
+    IDLE = 0
+    CONNECTED = 1
+    UNKNOWN = 2
+
+
+class RadioAccessTechnology(IntEnum):
+    NBNTN = 0
+    NBIOT = 1
+    CATM = 2
 
 
 class TransportType(IntEnum):
