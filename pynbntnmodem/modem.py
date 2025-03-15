@@ -432,6 +432,10 @@ class NbntnBaseModem(ABC):
         """Use the internal GNSS for NTN network registration."""
         raise NotImplementedError('Requires module-specfic subclass')
     
+    def supported_rat(self) -> 'list[RadioAccessTechnology]':
+        """Get the list of supported Radio Access Technologies of the modem."""
+        return [RadioAccessTechnology.NBNTN]
+        
     def get_rat(self) -> RadioAccessTechnology:
         """Get the current Radio Access Technology."""
         raise NotImplementedError('Requires module-specific subclass')
