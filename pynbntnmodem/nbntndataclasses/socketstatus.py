@@ -9,7 +9,13 @@ class SocketStatus:
     
     Attributes:
         active (bool): Indicator whether the socket is active.
-        ip_address (str): The IP address assigned by the network.
+        dst_ip (str): The destination server/IP address.
+        dst_port (int): The destination port.
+        src_ip (str): The source IP address (assigned by the network).
+        src_port (int): The source port used.
     """
     active: bool = False
-    ip_address: str = ''
+    dst_ip: str = ''
+    dst_port: int = 0
+    src_ip: str = ''
+    src_port: int = 0
