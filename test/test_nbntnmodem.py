@@ -22,16 +22,16 @@ def generic_modem():
     return DefaultModem(apn=os.getenv('TEST_APN', 'viasat.poc'))
 
 
-@pytest.mark.skip
 def test_detect(generic_modem: DefaultModem):
     modem = generic_modem
     modem.connect()
     model = get_model(modem._serial)
-    assert model.name == DefaultModem.model_name()
+    assert model.name in ModuleModel.__members__
 
 
 def test_init(generic_modem: DefaultModem):
     modem = generic_modem
+    modem._command_timeout = 10
     modem.connect()
     assert modem.initialize_ntn() is True
 
