@@ -69,24 +69,26 @@ class NbntnBaseModem(ABC):
             **udp_port (int): Optional destination port of the server if using UDP
         """
         self._version: str = ''
-        self._serial_port = kwargs.get('port', os.getenv('SERIAL_PORT',
+        self._serial_port = kwargs.pop('port', os.getenv('SERIAL_PORT',
                                                          '/dev/ttyUSB0'))
-        self._baudrate = kwargs.get('baudrate', int(os.getenv('SERIAL_BAUDRATE',
+        self._baudrate = kwargs.pop('baudrate', int(os.getenv('SERIAL_BAUDRATE',
                                                               115200)))
-        self._serial: AtClient = kwargs.get('client', AtClient())
+        self._serial: AtClient = kwargs.pop('client', AtClient())
         if not isinstance(self._serial, AtClient):
             raise ValueError('Invalid AtClient')
-        self._pdp_type: PdpType = kwargs.get('pdp_type', PdpType.NON_IP)
+        self._pdp_type: PdpType = kwargs.pop('pdp_type', PdpType.NON_IP)
         if not isinstance(self._pdp_type, PdpType):
             raise ValueError('Invalid PdpType')
         self._apn: str = ''
         self.apn = kwargs.get('apn', '')
         self._udp_server: str = ''
-        if kwargs.get('udp_server'):
-            self.udp_server = kwargs.get('udp_server')
         self._udp_server_port: int = 0
-        if kwargs.get('udp_port') is not None:
-            self.udp_server_port = kwargs.get('udp_port')
+        for k, v in kwargs.items():
+            if (getattr(self, k, None) is not None and
+                not callable(getattr(self, k)) and
+                not k.startswith('_') and
+                v is not None):
+                setattr(self, k, v)
         self._command_timeout: float = AT_TIMEOUT   # modem-specific default
     
     def get_at_client(self) -> AtClient:
@@ -215,11 +217,13 @@ class NbntnBaseModem(ABC):
     def ip_address(self) -> str:
         ip_address = ''
         if self.send_command('AT+CGPADDR') == AtErrorCode.OK:
-            res = self.get_response().split('\n')
+            res = self.get_response('+CGPADDR:').split('\n')
             if len(res) > 1:
                 _log.warning('%d IP addresses returned', len(res))
             ip_address = res[0].split(',')[-1]
-        elif self.send_command('AT+CGDCONT?') == AtErrorCode.OK:
+            if not is_valid_ip(ip_address):
+                ip_address = ''
+        if not ip_address and self.send_command('AT+CGDCONT?') == AtErrorCode.OK:
             params = self.get_response('+CGDCONT:').split(',')
             for i, param in enumerate(params):
                 param = param.replace('"', '')
@@ -245,10 +249,9 @@ class NbntnBaseModem(ABC):
     
     @udp_server.setter
     def udp_server(self, server: str):
-        if (not server or
+        if (not isinstance(server, str) or
             (not is_valid_ip(server) and not is_valid_hostname(server))):
-            _log.error('Invalid server IP or DNS')
-            return
+            raise ValueError('Invalid server IP or DNS')
         self._udp_server = server
     
     @property
