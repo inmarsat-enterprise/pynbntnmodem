@@ -123,6 +123,7 @@ class UrcType(IntEnum):
     PSM_EXIT = 16
     DEEP_SLEEP_ENTER = 17
     DEEP_SLEEP_EXIT = 18
+    MODEM_REBOOT = 19
 
 
 class TauMultiplier(IntEnum):
