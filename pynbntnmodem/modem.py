@@ -841,7 +841,7 @@ class NbntnBaseModem(ABC):
         raise NotImplementedError('Requires module-specific subclass')
     
     @abstractmethod
-    def enable_udp_urc(self) -> bool:
+    def enable_udp_urc(self, enable: bool = True, **kwargs) -> bool:
         """Enables URC supporting UDP operation."""
         # raise NotImplementedError('Must implement in subclass')
         return False
@@ -922,8 +922,15 @@ class NbntnBaseModem(ABC):
         raise NotImplementedError('Requires module-specific subclass')
     
     @abstractmethod
-    def report_debug(self, add_commands: 'list[str]|None' = None) -> None:
-        """Log a set of module-relevant config settings and KPIs."""
+    def report_debug(self,
+                     add_commands: 'list[str]|None' = None,
+                     replace: bool = False) -> None:
+        """Log a set of module-relevant config settings and KPIs.
+        
+        Args:
+            add_commands (list): A list of additional AT commands to send.
+            replace (bool): If True, replaces the default 3GPP command list.
+        """
         debug_commands = [   # Base commands are 3GPP TS 27.007
             'ATI',   # module information
             'AT+CGMR',   # firmware/revision
@@ -942,6 +949,8 @@ class NbntnBaseModem(ABC):
         ]
         if (isinstance(add_commands, list) and
             all(isinstance(item, str) for item in add_commands)):
+            if replace is True:
+                debug_commands = []
             debug_commands += add_commands
         for cmd in debug_commands:
             res = self.send_command(cmd, 15)
@@ -999,8 +1008,8 @@ class DefaultModem(NbntnBaseModem):
     def ping_icmp(self, **kwargs):
         return super().ping_icmp(**kwargs)
     
-    def enable_udp_urc(self):
-        return super().enable_udp_urc()
+    def enable_udp_urc(self, enable = True, **kwargs):
+        return super().enable_udp_urc(enable, **kwargs)
     
     def udp_socket_open(self, **kwargs):
         return super().udp_socket_open(**kwargs)
@@ -1017,7 +1026,7 @@ class DefaultModem(NbntnBaseModem):
     def receive_message_udp(self, cid = 1, **kwargs):
         return super().receive_message_udp(cid, **kwargs)
     
-    def report_debug(self, add_commands = None):
+    def report_debug(self, add_commands = None, replace = False):
         return super().report_debug(add_commands)
 
 
