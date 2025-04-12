@@ -55,8 +55,9 @@ class NbntnBaseModem(ABC):
     _manufacturer: ModuleManufacturer = ModuleManufacturer.UNKNOWN
     _model: ModuleModel = ModuleModel.UNKNOWN
     _chipset: Chipset = Chipset.UNKNOWN
-    _ignss: bool = False
-    _ntn_only: bool = False
+    _ignss: bool = False   # modem has internal GNSS
+    _ntn_only: bool = False   # modem supports only NTN
+    _rrc_ack: bool = False   # modem supports RRC send confirmation
 
     def __init__(self, **kwargs) -> None:
         """Instantiate a modem interface.
@@ -520,6 +521,10 @@ class NbntnBaseModem(ABC):
             return RrcState(int(self.get_response('+CSCON:').split(',')[1]))
         return RrcState.UNKNOWN
 
+    def enable_rrc_urc(self, enable: bool = True) -> bool:
+        """Enable or disable RRC state change notifications."""
+        return self.send_command(f'AT+CSCON={int(enable)}') == AtErrorCode.OK
+    
     @abstractmethod
     def get_siginfo(self) -> SigInfo:
         """Get the signal information from the modem."""
