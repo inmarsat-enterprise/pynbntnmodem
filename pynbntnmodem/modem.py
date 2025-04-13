@@ -804,9 +804,9 @@ class NbntnBaseModem(ABC):
         cmd = f'AT+CSODCP={cid},{len(message)},"{message.hex()}"'
         rai = kwargs.get('rai')
         data_type = kwargs.get('data_type')
-        if rai:
+        if rai is not None:
             cmd += f',{rai}'
-        if data_type:
+        if data_type is not None:
             if rai is None:
                 cmd += ','
             cmd += f',{data_type}'
