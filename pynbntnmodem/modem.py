@@ -792,12 +792,24 @@ class NbntnBaseModem(ABC):
         Args:
             message (bytes): The message content/payload.
             cid (int): The (PDP/PDN) context ID to use.
+            **rai (int): Release Assistance Indicator none (0),
+                done on tx (1), done on rx (2)
+            **data_type (int): Regular (0) or Exception (1)
         
         Returns:
-            MoMessage object with optional metadata.
+            MoMessage object with optional metadata, or None if it could not
+                be sent.
         """
         _log.debug('Sending NIDD message without confirmation')
         cmd = f'AT+CSODCP={cid},{len(message)},"{message.hex()}"'
+        rai = kwargs.get('rai')
+        data_type = kwargs.get('data_type')
+        if rai:
+            cmd += f',{rai}'
+        if data_type:
+            if rai is None:
+                cmd += ','
+            cmd += f',{data_type}'
         if self.send_command(cmd) == AtErrorCode.OK:
             return MoMessage(message, PdpType.NON_IP)
         return None
