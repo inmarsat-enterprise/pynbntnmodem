@@ -711,11 +711,18 @@ class NbntnBaseModem(ABC):
                     dynamic.ptw_bitmask = param
         return dynamic
     
-    def use_lband(self) -> bool:
-        """Restrict network scans to L-band 255."""
-        # TODO: deprecate in favour of restrict_ntn_lband
-        raise NotImplementedError('Requires module-specific subclass')
+    def get_system_time(self) -> int:
+        """Get the system time in seconds since epoch 1970-01-01T00:00:00Z.
         
+        Returns 0 if system time cannot be derived.
+        """
+        _log.warning('System time query should be module-specific')
+        if self.has_ignss:
+            loc = self.get_location()
+            if loc.fix_timestamp > 0:
+                return loc.fix_timestamp
+        return 0
+    
     @abstractmethod
     def get_band(self) -> int:
         """Get the current LTE band in use."""
