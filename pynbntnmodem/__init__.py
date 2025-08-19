@@ -32,10 +32,8 @@ from .structures import (
     SigInfo,
     SocketStatus,
 )
-from .modem_new import (
-    NbntnBaseModem,
-    DefaultModem,
-    # get_model,
+from .modem import (
+    NbntnModem,
 )
 from .ntninit import (
     NtnHardwareAssert,
@@ -44,9 +42,9 @@ from .ntninit import (
     NtnInitSequence,
     NtnInitUrc
 )
-from .modem_loader import (
+from .loader import (
     clone_and_load_modem_classes,
-    load_modem_class,
+    mutate_modem,
 )
 from .utils import get_model
 from .udpsocket import UdpSocketBridge
@@ -65,8 +63,7 @@ __all__ = [
     'ModuleModel',
     'MoMessage',
     'MtMessage',
-    'NbntnBaseModem',
-    'DefaultModem',
+    'NbntnModem',
     'NtnLocation',
     'NtnOpMode',
     'PdpContext',
@@ -89,6 +86,6 @@ __all__ = [
     'NtnInitSequence',
     'NtnInitUrc',
     'clone_and_load_modem_classes',
-    'load_modem_class',
+    'mutate_modem',
     'UdpSocketBridge',
 ]

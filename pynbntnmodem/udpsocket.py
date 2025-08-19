@@ -7,10 +7,10 @@ import logging
 import socket
 import threading
 import time
-from typing import Callable, Any
+from typing import Callable
 
 from .constants import NBNTN_MAX_MSG_SIZE
-from .modem import MoMessage, MtMessage
+from .structures import MoMessage, MtMessage
 
 __all__ = ['UdpSocketBridge']
 
@@ -25,9 +25,9 @@ class UdpSocketBridge:
     def __init__(self,
                  server: str,
                  port: int,
-                 open: Callable[[Any], bool],
+                 open: Callable[..., bool],
                  send: Callable[[bytes], MoMessage|None],
-                 recv: Callable[[Any], bytes|MtMessage|None],
+                 recv: Callable[..., bytes|MtMessage|None],
                  close: Callable[[], bool],
                  event_trigger: bool = False):
         """Create a raw socket.
@@ -36,7 +36,7 @@ class UdpSocketBridge:
             server (str): The IP address or server name to connect to.
             port (int): The UDP port to use.
             open (Callable[[str, int], bool]): The callback function to open
-                a UDP socket. Takes `server`, `port` and returns success.
+                a UDP socket. Uses `server`, `port` and returns success.
             send (Callable[[bytes], MoMessage|None]): The callback function
                 to send UDP data on the modem socket.
             recv (Callable[[Any], bytes|MtMessageNone]): The callback function
@@ -76,7 +76,7 @@ class UdpSocketBridge:
             # check for incoming data
             if not self._event_trigger or self._recv_event.is_set():
                 self._recv_event.clear()
-                downlink = self._cb_recv(size=NBNTN_MAX_MSG_SIZE)
+                downlink = self._cb_recv(size=NBNTN_MAX_MSG_SIZE, raw=True)
                 if isinstance(downlink, bytes) and len(downlink) > 0:
                     rcvd = self._sock.sendto(downlink, ('127.0.0.1', self._port))
                     _log.debug('Received %d bytes OTA', rcvd)

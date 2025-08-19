@@ -7,3 +7,5 @@ __pycache__
 logs/
 dist/
 test/tmp
+pynbntnmodem/modems/*.py
+!pynbntnmodem/modems/__init__.py
