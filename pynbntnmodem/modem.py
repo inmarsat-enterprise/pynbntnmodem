@@ -3,7 +3,7 @@
 import logging
 import time
 from abc import ABC
-from typing import Any
+from typing import Any, Optional
 
 from pyatcommand import AtClient, AtResponse, AtTimeout
 from pyatcommand.common import dprint
@@ -70,12 +70,31 @@ class NbntnModem(AtClient, ABC):
         self._apn: str = ''
         self._udp_server: str = ''
         self._udp_server_port: int = 0
+        self._ntn_initialized: bool = False
         for k, v in kwargs.items():
             if k in ['pdp_type', 'apn', 'udp_server', 'udp_server_port']:
                 setattr(self, k, v)
+        self._debug_commands: list[str] = [
+            'AT+CMEE?',   # Enhanced error output
+            'ATI',   # module information
+            'AT+CGMR',   # firmware/revision
+            'AT+CIMI',   # IMSI
+            'AT+CGSN',   # IMEI
+            'AT+CFUN?',   # Module radio function configured
+            'AT+CEREG?',   # Registration status and URC config
+            'AT+CGDCONT?',   # PDP/PDN Context configuration
+            'AT+CGPADDR',   # IP address(es) assigned by network
+            'AT+CPSMS?',   # Power saving mode settings (requested)
+            'AT+CEDRXS?',   # eDRX settings (requested)
+            'AT+CEDRXRDP',   # eDRX dynamic parameters
+            'AT+CRTDCP?',   # Reporting of terminating data via control plane
+            'AT+CSCON?',   # Signalling connection status
+            'AT+CESQ',   # Signal quality including RSRQ indexed from 0 = -19.5 in 0.5dB increments, RSRP indexed from 0 = -140 in 1 dBm increments
+        ]
 
     def _post_mutate(self, **kwargs):
         """Call post-mutation to a subclass of NbntnModem."""
+        self._ntn_initialized = False
         
     def connect(self, **kwargs) -> None:
         return super().connect(**kwargs)
@@ -208,6 +227,10 @@ class NbntnModem(AtClient, ABC):
                         ip_address = param
         return ip_address
 
+    @property
+    def ntn_initialized(self) -> bool:
+        return self._ntn_initialized
+    
     def get_model(self) -> ModuleModel:
         resp = self.send_command('ATI', timeout=3)
         if resp.ok and resp.info:
@@ -272,7 +295,7 @@ class NbntnModem(AtClient, ABC):
         """Parse a URC to retrieve relevant metadata."""
         raise NotImplementedError('Requires module-specfic subclass')
     
-    def inject_urc(self, urc: str) -> bool:
+    def inject_urc(self, urc: str, **kwargs) -> bool:
         """Injects a URC string into the AtClient unsolicited queue.
         
         Used for custom events e.g. message send complete without native URC.
@@ -282,7 +305,14 @@ class NbntnModem(AtClient, ABC):
         else:
             _log.debug('Injecting URC: %s', dprint(urc))
         try:
-            self._unsolicited_queue.put(urc)
+            if kwargs.get('split') is True:
+                urcs = [u.strip() for u in urc.strip().split('\r\n') if u]
+                if len(urcs) > 1:
+                    _log.warning('Splitting into %d URC', len(urcs))
+                for u in urcs:
+                    self._unsolicited_queue.put(u)
+            else:
+                self._unsolicited_queue.put(urc.strip())
             return True
         except Exception:
             return False
@@ -338,6 +368,8 @@ class NbntnModem(AtClient, ABC):
                     if step.timeout and self._command_timeout:
                         if step.timeout < self._command_timeout:
                             step.timeout = self._command_timeout
+                        _log.debug('Waiting up to %0.1fs (%s)',
+                                   step.timeout, step.why)
                     res: AtResponse = self.send_command(at_cmd,
                                                         timeout=step.timeout)
                     if step.res is None or res.result == step.res:
@@ -378,9 +410,10 @@ class NbntnModem(AtClient, ABC):
         if sequence_step != len(ntn_init):
             _log.error('NTN initialization failed at step %d (%s)',
                        sequence_step, ntn_init[sequence_step - 1].cmd)
-            return False
-        _log.debug('NTN initialization complete')
-        return True
+        if step_success:
+            _log.debug('NTN initialization complete')
+        self._ntn_initialized = step_success
+        return self._ntn_initialized
     
     def get_info(self, timeout: float = 3) -> str:
         """Get the detailed response of the AT information command."""
@@ -925,38 +958,36 @@ class NbntnModem(AtClient, ABC):
     
     # @abstractmethod
     def report_debug(self,
-                     add_commands: list[str]|None = None,
-                     replace: bool = False) -> None:
+                     add_commands: Optional[list[str]] = None,
+                     replace: Optional[list[str]] = None) -> None:
         """Log a set of module-relevant config settings and KPIs.
         
         Args:
-            add_commands (list): A list of additional AT commands to send.
-            replace (bool): If True, replaces the default 3GPP command list.
+            add_commands: A list of additional AT commands to send.
+            replace: A list of default 3GPP commands to remove. `<all>` keyword
+                can be used to replace all default debug commands.
         """
-        debug_commands = [   # Base commands are 3GPP TS 27.007
-            'ATI',   # module information
-            'AT+CGMR',   # firmware/revision
-            'AT+CIMI',   # IMSI
-            'AT+CGSN',   # IMEI
-            'AT+CFUN?',   # Module radio function configured
-            'AT+CEREG?',   # Registration status and URC config
-            'AT+CGDCONT?',   # PDP/PDN Context configuration
-            'AT+CGPADDR',   # IP address(es) assigned by network
-            'AT+CPSMS?',   # Power saving mode settings (requested)
-            'AT+CEDRXS?',   # eDRX settings (requested)
-            'AT+CEDRXRDP',   # eDRX dynamic parameters
-            'AT+CRTDCP?',   # Reporting of terminating data via control plane
-            'AT+CSCON?',   # Signalling connection status
-            'AT+CESQ',   # Signal quality including RSRQ indexed from 0 = -19.5 in 0.5dB increments, RSRP indexed from 0 = -140 in 1 dBm increments
-        ]
-        if (isinstance(add_commands, list) and
-            all(isinstance(item, str) for item in add_commands)):
-            if replace is True:
-                debug_commands = []
-            debug_commands += add_commands
+        if isinstance(add_commands, list):
+            if not all(isinstance(cmd, str) for cmd in add_commands):
+                raise ValueError('Invalid command(s) must be list of strings')
+        else:
+            add_commands = []
+        if isinstance(replace, list):
+            if not all(isinstance(cmd, str) for cmd in replace):
+                raise ValueError('Invalid command(s) must be list of strings')
+        else:
+            replace = []
+        debug_commands = self._debug_commands
+        if '<all>' in replace:
+            debug_commands = []
+            replace = []
+        for cmd in replace:
+            if cmd in debug_commands:
+                debug_commands.remove(cmd)
+        debug_commands += add_commands
         for cmd in debug_commands:
-            res = self.send_command(cmd, 15)
-            if res.ok and res.info:
-                _log.info('%s => %s', cmd, dprint(res.info))
+            res = self.send_command(cmd, timeout=15)
+            if res.ok:
+                _log.info('%s => %s', cmd, dprint(res.info or 'OK'))
             else:
                 _log.error('Failed to query %s (ErrorCode: %d)', cmd, res.result)
