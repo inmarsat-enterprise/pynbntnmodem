@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import Optional, Callable, Iterable, List
 
 from pyatcommand import AtErrorCode
-from pyatcommand.constants import AT_TIMEOUT, AT_URC_TIMEOUT
+from pyatcommand.common import AT_TIMEOUT, AT_URC_TIMEOUT
 
 
 @dataclass
@@ -96,7 +96,7 @@ class NtnInitCommand:
         retry (NtnInitRetry|None): Optional retry parameters.
         urc (NtnInitUrc|None): Optional triggered URC parameters.
     """
-    why: str
+    why: str = ''
     cmd: str = ''
     res: Optional[AtErrorCode] = AtErrorCode.OK
     timeout: Optional[float] = AT_TIMEOUT
@@ -157,34 +157,53 @@ class NtnInitSequence(List[NtnInitCommand]):
     
     @classmethod
     def from_list_of_dict(cls, commands: 'list[dict]'):
+        """Parses a list of dictionary command definitions.
+        
+        Each dictionary may contain:
+        `gpio` dictionary with `name` (str) and `duration` (float),
+        `retry` dictionary with optional `count` (int) and `delay` (float)
+        `urc` (str) and optional `urctimeout` (float)
+        """
         if (not isinstance(commands, list) or
             not all(isinstance(c, dict) for c in commands)):
             raise ValueError('Invalid list of commands')
         res = NtnInitSequence()
         for command in commands:
-            if 'hw' in command:
-                gpio = NtnHardwareAssert(gpio_name=command.get('hw'),
-                                            duration=command.get('duration'))
-            else:
-                gpio = None
+            gpio = retry = urc = None
+            if 'gpio' in command:
+                gpio_def = command.get('gpio')
+                if not isinstance(gpio_def, dict):
+                    raise ValueError('GPIO definition must be a dictionary')
+                gpio_name = gpio_def.get('name')
+                if not isinstance(gpio_name, str) or not gpio_name:
+                    raise ValueError('GPIO name must be non-empty string')
+                gpio_duration = gpio_def.get('duration')
+                if not isinstance(gpio_duration, (float, int)):
+                    raise ValueError('Invalid GPIO assert duration')
+                gpio = NtnHardwareAssert(gpio_name, float(gpio_duration))
             if 'retry' in command:
-                retry = NtnInitRetry(count=command['retry'].get('count'),
-                                     delay=command['retry'].get('delay'))
-            else:
-                retry = None
+                retry_def = command.get('retry')
+                if not isinstance(retry_def, dict):
+                    raise ValueError('Retry definition must be a dictionary')
+                count = retry_def.get('count', 0)
+                delay = retry_def.get('delay')
+                if delay is not None and delay < 0:
+                    raise ValueError('Invalid retry delay must be >= 0')
+                retry = NtnInitRetry(count, delay)
             if 'urc' in command:
-                urc = NtnInitUrc(urc=command.get('urc'),
-                                    timeout=command.get('urctimeout'))
-            else:
-                urc = None
-            res.append(NtnInitCommand(why=command.get('why'),
-                                        cmd=command.get('cmd'),
-                                        res=command.get('res'),
-                                        timeout=command.get('timeout'),
-                                        gpio=gpio,
-                                        delay=command.get('delay'),
-                                        retry=retry,
-                                        urc=urc))
+                expected_urc = command.get('urc')
+                if not isinstance(expected_urc, str) or not expected_urc:
+                    raise ValueError('Invalid URC must be non-empty string')
+                timeout = command.get('urctimeout', AT_URC_TIMEOUT)
+                urc = NtnInitUrc(expected_urc, timeout)
+            res.append(NtnInitCommand(why=command.get('why', ''),
+                                      cmd=command.get('cmd', ''),
+                                      res=command.get('res'),
+                                      timeout=command.get('timeout'),
+                                      gpio=gpio,
+                                      delay=command.get('delay'),
+                                      retry=retry,
+                                      urc=urc))
         return res
                 
 

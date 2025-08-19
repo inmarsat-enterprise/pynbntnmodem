@@ -204,6 +204,16 @@ class SignalQuality(IntEnum):
     WARNING = 6
 
 
+class CeregMode(IntEnum):
+    """+CEREG unsolicited reporting modes."""
+    NONE = 0
+    STATUS = 1   # <stat>
+    STATUS_LOC = 2   # <stat>[,[<tac>],[<ci>],[<AcT>]]
+    STATUS_LOC_EMM = 3   # <stat>[,[<tac>],[<ci>],[<AcT>][,<cause_type>,<reject_cause>]]
+    STATUS_LOC_PSM = 4   # <stat>[,[<tac>],[<ci>],[<AcT>][,,[,[<Active-Time>],[<Periodic-TAU>]]]]
+    STATUS_LOC_EMM_PSM = 5   # <stat>[,[<tac>],[<ci>],[<AcT>][,<cause_type>,<reject_cause>][,[<Active-Time>],[<Periodic-TAU>]]]
+
+
 class EmmRejectionCause(IntEnum):
     """EPS Mobility Management rejection causes by the network.
     

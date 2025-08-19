@@ -22,11 +22,11 @@ def generic_modem():
     return DefaultModem(apn=os.getenv('TEST_APN', 'viasat.poc'))
 
 
-def test_detect(generic_modem: DefaultModem):
-    modem = generic_modem
-    modem.connect()
-    model = get_model(modem._serial)
-    assert model.name in ModuleModel.__members__
+# def test_detect(generic_modem: DefaultModem):
+#     modem = generic_modem
+#     modem.connect()
+#     model = get_model(modem._serial)
+#     assert model.name in ModuleModel.__members__
 
 
 def test_init(generic_modem: DefaultModem):

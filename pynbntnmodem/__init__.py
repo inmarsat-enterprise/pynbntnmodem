@@ -1,6 +1,7 @@
 '''Classes and methods for interfacing to a NB-NTN modem.'''
 
 from .constants import (
+    CeregMode,
     Chipset,
     ChipsetManufacturer,
     EdrxCycle,
@@ -20,7 +21,7 @@ from .constants import (
     RadioAccessTechnology,
     NBNTN_MAX_MSG_SIZE,
 )
-from .nbntndataclasses import (
+from .structures import (
     EdrxConfig,
     MoMessage,
     MtMessage,
@@ -31,10 +32,10 @@ from .nbntndataclasses import (
     SigInfo,
     SocketStatus,
 )
-from .modem import (
+from .modem_new import (
     NbntnBaseModem,
     DefaultModem,
-    get_model,
+    # get_model,
 )
 from .ntninit import (
     NtnHardwareAssert,
@@ -47,10 +48,12 @@ from .modem_loader import (
     clone_and_load_modem_classes,
     load_modem_class,
 )
+from .utils import get_model
 from .udpsocket import UdpSocketBridge
 
 __all__ = [
     'NBNTN_MAX_MSG_SIZE',
+    'CeregMode',
     'Chipset',
     'ChipsetManufacturer',
     'EdrxConfig',

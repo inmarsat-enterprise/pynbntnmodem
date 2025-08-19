@@ -38,7 +38,9 @@ class RegInfo:
     
     def get_psm_granted(self) -> PsmConfig:
         """Get the network-granted Power Save Mode configuration."""
-        return PsmConfig(self.tau_t3412_bitmask, self.act_t3324_bitmask)
+        return PsmConfig(self.tau_t3412_bitmask != '',
+                         self.tau_t3412_bitmask,
+                         self.act_t3324_bitmask)
     
     def is_emm_rejection(self) -> bool:
         return self.cause_type == 0
