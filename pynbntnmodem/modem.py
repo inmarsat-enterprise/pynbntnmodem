@@ -3,6 +3,7 @@
 import logging
 import time
 from abc import ABC
+from typing import Any
 
 from pyatcommand import AtClient, AtResponse, AtTimeout
 from pyatcommand.common import dprint
@@ -703,11 +704,11 @@ class NbntnModem(AtClient, ABC):
                     dynamic.ptw_bitmask = param
         return dynamic
     
-    def get_sleep_mode(self):
+    def get_sleep_mode(self) -> Any:
         """Get the modem hardware sleep settings."""
         raise NotImplementedError('Requires module-specfic subclass')
 
-    def set_sleep_mode(self):
+    def set_sleep_mode(self, **kwargs) -> bool:
         """Set the modem hardware sleep settings."""
         raise NotImplementedError('Requires module-specfic subclass')
     
@@ -757,14 +758,14 @@ class NbntnModem(AtClient, ABC):
         return res.ok
 
     # @abstractmethod
-    def send_message_nidd(self, message: bytes, cid: int = 1, **kwargs) -> MoMessage|None:
+    def send_message_nidd(self, message: bytes, **kwargs) -> MoMessage|None:
         """Send a message using Non-IP Data Delivery.
         
         Keyword arguments allows for device-specific parameters.
         
         Args:
             message (bytes): The message content/payload.
-            cid (int): The (PDP/PDN) context ID to use.
+            **cid (int): The (PDP/PDN) context ID to use (default: 1).
             **rai (int): Release Assistance Indicator none (0),
                 done on tx (1), done on rx (2)
             **data_type (int): Regular (0) or Exception (1)
@@ -773,6 +774,7 @@ class NbntnModem(AtClient, ABC):
             MoMessage object with optional metadata, or None if it could not
                 be sent.
         """
+        cid = kwargs.get('cid', 1)
         res = self.send_command('AT+CSODCP?')
         if not res.ok:
             raise NotImplementedError('Requires module-specific subclass')
@@ -888,11 +890,11 @@ class NbntnModem(AtClient, ABC):
         raise NotImplementedError('Requires module-specific subclass')
     
     # @abstractmethod
-    def receive_message_udp(self, cid: int = 1, **kwargs) -> MtMessage|bytes|None:
+    def receive_message_udp(self, **kwargs) -> MtMessage|bytes|None:
         """Get MT/downlink data received over UDP.
         
         Args:
-            cid (int): Context/session ID (default 1)
+            **cid (int): Context/session ID (default 1)
             **urc (str): URC output including hex payload
             **size (int): Maximum bytes to read (default 256)
             **raw (bool): If True returns `bytes` otherwise returns `MtMessage`
@@ -923,7 +925,7 @@ class NbntnModem(AtClient, ABC):
     
     # @abstractmethod
     def report_debug(self,
-                     add_commands: 'list[str]|None' = None,
+                     add_commands: list[str]|None = None,
                      replace: bool = False) -> None:
         """Log a set of module-relevant config settings and KPIs.
         
