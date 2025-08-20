@@ -480,8 +480,8 @@ class NbntnModem(AtClient, ABC):
         if urc:
             cereg_parts = urc.replace('+CEREG:', '').strip().split(',')
             if (queried):
-                config = int(cereg_parts.pop(0))
-                _log.debug('Registration reporting mode: %d', config)
+                config = CeregMode(int(cereg_parts.pop(0)))
+                _log.debug('Registration reporting mode: %s', config)
             for i, param in enumerate(cereg_parts):
                 param = param.replace('"', '')
                 if not param:
@@ -586,9 +586,9 @@ class NbntnModem(AtClient, ABC):
             return SignalQuality.WEAK
         return SignalQuality.NONE
 
-    def get_contexts(self) -> 'list[PdpContext]':
+    def get_contexts(self) -> list[PdpContext]:
         """Get the list of configured PDP contexts in the modem."""
-        contexts: 'list[PdpContext]' = []
+        contexts: list[PdpContext] = []
         res = self.send_command('AT+CGDCONT?', prefix='+CGDCONT:')
         if res.ok and res.info:
             context_strs = res.info.split('\n')
@@ -607,39 +607,46 @@ class NbntnModem(AtClient, ABC):
                     elif i == 3:
                         c.ip = param
                 contexts.append(c)
+        resp = self.send_command('AT+CGACT?', prefix='+CGACT:')
+        if resp.ok and resp.info:
+            context_states = resp.info.split('\n')
+            for context_state in context_states:
+                cid, state = context_state.split(',')
+                cid = int(cid)
+                active = state == '1'
+                for c in contexts:
+                    if c.id == cid:
+                        c.active = active
         return contexts
     
-    def set_context(self, config: PdpContext, **kwargs) -> bool:
-        """Configure a specific PDP context in the modem.
+    def set_context(self, apn: str, pdp_type: PdpType, **kwargs) -> bool:
+        """(Re)Define a PDN/PDP context.
         
         Args:
-            config (PdpContext): The PDN/PDP context details
-            **timeout (float): The time to wait for radio en/dis-able
+            apn (str): The APN name.
+            pdp_type (PdpType): The PDN context type.
+            **cid (int): The context ID.
+            **reconnect (bool): Optional restart modem after change.
         """
-        for c in self.get_contexts():
-            if (c.id == config.id):
-                if (c.pdp_type == config.pdp_type and
-                    c.apn == config.apn):
-                    return True
-        timeout = kwargs.get('timeout', 30)
-        res = self.send_command('AT+CFUN=0', timeout)
-        if not res.ok:
-            _log.error('Unable to disable radio for config')
-            return False
-        # TODO: await AT responsiveness
-        cmd = f'AT+CGDCONT={config.id}'
-        pdp_type = config.pdp_type.name.replace('_', '-')
-        cmd += f',"{pdp_type}"'
-        cmd += f',"{config.apn}"'
-        if config.ip:
-            cmd += f',{config.ip}'
-        #TODO: other optional configurations
-        res = self.send_command(cmd)
-        if not res.ok:
-            _log.error('Error configuring PDN context')
-            return False
-        res = self.send_command('AT+CFUN=1', timeout)
-        return res.ok
+        if not isinstance(apn, str) or not apn:
+            raise ValueError('Missing APN value')
+        if not isinstance(pdp_type, PdpType):
+            raise ValueError('Invalid PDP type')
+        cid = kwargs.get('cid', 1)
+        reconnect = kwargs.get('reconnect')
+        result = False
+        if reconnect is True:
+            if not self.send_command('AT+CFUN=0', timeout=30).ok:
+                _log.error('Disable modem failed')
+        pdp_name = pdp_type.name.replace('_', '-')
+        cmd = f'AT+CGDCONT={cid},"{pdp_name}","{apn}"'
+        result = self.send_command(cmd, timeout=10).ok
+        if reconnect is True:
+            if not self.send_command('AT+CFUN=1', timeout=30).ok:
+                _log.error('Enable modem failed')
+            if result and cid == 1:
+                self._pdp_type = pdp_type
+        return result
     
     def get_psm_config(self) -> PsmConfig:
         """Get the Power Save Mode settings.
