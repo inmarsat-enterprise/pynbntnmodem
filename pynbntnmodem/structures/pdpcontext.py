@@ -7,14 +7,14 @@ packets.
 from dataclasses import dataclass
 from typing import Optional
 
-from pynbntnmodem.constants import PdpType
+from pynbntnmodem.constants import PdnType
 
 
 @dataclass
-class PdpContext:
+class PdnContext:
     """Attributes of a NB-NTN Packet Data Protocol context/definition."""
     id: int = 1   # context ID
-    pdp_type: PdpType = PdpType.IP
+    pdn_type: PdnType = PdnType.IP
     apn: str = ''
     ip: Optional[str] = None   # the IP address if type is IP and attached
     active: bool = False

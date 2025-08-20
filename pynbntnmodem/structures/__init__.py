@@ -3,7 +3,7 @@
 from .edrxconfig import EdrxConfig
 from .ntnlocation import NtnLocation
 from .message import MoMessage, MtMessage
-from .pdpcontext import PdpContext
+from .pdpcontext import PdnContext
 from .psmconfig import PsmConfig
 from .reginfo import RegInfo
 from .siginfo import SigInfo
@@ -14,7 +14,7 @@ __all__ = [
     'NtnLocation',
     'MoMessage',
     'MtMessage',
-    'PdpContext',
+    'PdnContext',
     'PsmConfig',
     'RegInfo',
     'SigInfo',

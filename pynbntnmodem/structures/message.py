@@ -8,25 +8,25 @@ import ipaddress
 from dataclasses import dataclass
 from typing import Optional, Union
 
-from pynbntnmodem.constants import PdpType
+from pynbntnmodem.constants import PdnType
 
 __all__ = [ 'BaseMessage', 'MoMessage', 'MtMessage' ]
 
 @dataclass
 class BaseMessage:
     payload: bytes
-    transport: PdpType
+    transport: PdnType
     id: Optional[Union[int, str]] = None
     
     @property
     def size(self) -> int:
         if self.transport is None or self.payload is None:
             return 0
-        if self.transport == PdpType.NON_IP:
+        if self.transport == PdnType.NON_IP:
             return len(self.payload)
-        if self.transport == PdpType.IP:
+        if self.transport == PdnType.IP:
             return len(self.payload) + 20 + 8
-        if self.transport == PdpType.IPV6:
+        if self.transport == PdnType.IPV6:
             return len(self.payload) + 40 + 8
         ip = None
         if hasattr(self, 'dst_ip'):

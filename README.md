@@ -3,7 +3,7 @@
 A generic model for interfacing to a NB-IoT modem compatible with 3GPP R17
 Non-Terrestrial Network.
 
-Provides an base class **`NbntnBaseModem`** that abstracts specific AT commands
+Provides an base class **`NbntnModem`** that abstracts specific AT commands
 to common methods used for communicating using NB-IoT over satellite.
 The class is intended to be subclassed and extended for specific modem variants
 from various manufacturers.
@@ -11,9 +11,8 @@ from various manufacturers.
 ## Modem Subclassing
 
 Since modem implementations differ across make/model, this library is intended
-to be used to create `NbntnBaseModem` subclasses with specific AT commands and
-responses. An example `DefaultModem` is included which covers the most basic
-operations that should be supported by any 3GPP NTN compliant modem.
+to be used to create `NbntnModem` subclasses with specific AT commands and
+responses.
 
 ### Initialization Sequence
 
@@ -22,27 +21,6 @@ AT command sequence required by a particular modem variant.
 
 The `ntn_init` list of init objects may be customized and included at the top of 
 a specific modem subclass.
-
-### Importing a Modem Subclass
-
-A common approach to importing a modem subclass is as follows:
-```
-import importlib
-from pkgutil import iter_modules
-
-from pynbntnmodem import NbntnBaseModem, DefaultModem
-
-
-for mod in iter_modules(modems.__path__):
-    submodule = importlib.import_module(f'{path_to_module_file}')
-    for attr_name in dir(submodule):
-        attr = getattr(submodule, attr_name)
-        if (isinstance(attr, type) and
-            issubclass(attr, NbntnBaseModem) and
-            attr is not DefaultModem):
-            
-            modem = attr()
-```
 
 ## Common Workflow
 

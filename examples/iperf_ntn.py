@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 
 from pynbntnmodem import (
     NbntnModem,
-    PdpType,
+    PdnType,
     UrcType,
     UdpSocketBridge,
     mutate_modem,
@@ -31,7 +31,7 @@ logging.basicConfig(level=logging.DEBUG,
 def run_iperf_bridge():
     modem = NbntnModem(
         apn='viasat.ip',
-        pdp_type=PdpType.IP,
+        pdp_type=PdnType.IP,
         udp_server=os.getenv('UDP_SERVER', ''),
         udp_server_port=int(os.getenv('UDP_SERVER_PORT', '5001')),
     )

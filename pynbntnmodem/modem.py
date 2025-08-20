@@ -16,8 +16,8 @@ from pynbntnmodem import (
     MoMessage,
     MtMessage,
     NtnLocation,
-    PdpContext,
-    PdpType,
+    PdnContext,
+    PdnType,
     PsmConfig,
     RadioAccessTechnology,
     RegInfo,
@@ -55,7 +55,7 @@ class NbntnModem(AtClient, ABC):
         Args:
             **port (str): default to .env `SERIAL_PORT`
             **baudrate (int): default to .env `SERIAL_BAUDRATE`
-            **pdp_type (PdpType): default `NON_IP`
+            **pdn_type (PdpType): default `NON_IP`
             **apn (str): The APN value to use
             **udp_server (str): Optional UDP destination server
             **udp_server_port (int): Optional UDP destination port
@@ -66,13 +66,13 @@ class NbntnModem(AtClient, ABC):
         self._version: str = ''
         self._imsi: str = ''
         self._imei: str = ''
-        self._pdp_type: PdpType = PdpType.NON_IP
+        self._pdn_type: PdnType = PdnType.NON_IP
         self._apn: str = ''
         self._udp_server: str = ''
         self._udp_server_port: int = 0
         self._ntn_initialized: bool = False
         for k, v in kwargs.items():
-            if k in ['pdp_type', 'apn', 'udp_server', 'udp_server_port']:
+            if k in ['pdn_type', 'apn', 'udp_server', 'udp_server_port']:
                 setattr(self, k, v)
         self._debug_commands: list[str] = [
             'AT+CMEE?',   # Enhanced error output
@@ -143,14 +143,14 @@ class NbntnModem(AtClient, ABC):
         return self._ntn_only
     
     @property
-    def pdp_type(self) -> PdpType:
-        return self._pdp_type
+    def pdn_type(self) -> PdnType:
+        return self._pdn_type
     
-    @pdp_type.setter
-    def pdp_type(self, pdp_type: PdpType):
-        if not isinstance(pdp_type, PdpType):
+    @pdn_type.setter
+    def pdn_type(self, pdn_type: PdnType):
+        if not isinstance(pdn_type, PdnType):
             raise ValueError('Invalid PDP Type')
-        self._pdp_type = pdp_type
+        self._pdn_type = pdn_type
 
     @property
     def imei(self) -> str:
@@ -356,7 +356,7 @@ class NbntnModem(AtClient, ABC):
             at_cmd = step.cmd
             attempt = 1
             if '<pdn_type>' in at_cmd:
-                pdn_type = self._pdp_type.name.replace('_', '-')
+                pdn_type = self._pdn_type.name.replace('_', '-')
                 at_cmd = at_cmd.replace('<pdn_type>', pdn_type)
             if '<apn>' in at_cmd:
                 if not self._apn:
@@ -586,14 +586,14 @@ class NbntnModem(AtClient, ABC):
             return SignalQuality.WEAK
         return SignalQuality.NONE
 
-    def get_contexts(self) -> list[PdpContext]:
+    def get_contexts(self) -> list[PdnContext]:
         """Get the list of configured PDP contexts in the modem."""
-        contexts: list[PdpContext] = []
+        contexts: list[PdnContext] = []
         res = self.send_command('AT+CGDCONT?', prefix='+CGDCONT:')
         if res.ok and res.info:
             context_strs = res.info.split('\n')
             for s in context_strs:
-                c = PdpContext()
+                c = PdnContext()
                 for i, param in enumerate(s.split(',')):
                     param = param.replace('"', '')
                     if not param:
@@ -601,7 +601,7 @@ class NbntnModem(AtClient, ABC):
                     if i == 0:
                         c.id = int(param)
                     elif i == 1:
-                        c.pdp_type = PdpType[param.upper().replace('-', '_')]
+                        c.pdn_type = PdnType[param.upper().replace('-', '_')]
                     elif i == 2:
                         c.apn = param
                     elif i == 3:
@@ -619,18 +619,18 @@ class NbntnModem(AtClient, ABC):
                         c.active = active
         return contexts
     
-    def set_context(self, apn: str, pdp_type: PdpType, **kwargs) -> bool:
+    def set_context(self, apn: str, pdn_type: PdnType, **kwargs) -> bool:
         """(Re)Define a PDN/PDP context.
         
         Args:
             apn (str): The APN name.
-            pdp_type (PdpType): The PDN context type.
+            pdn_type (PdpType): The PDN context type.
             **cid (int): The context ID.
             **reconnect (bool): Optional restart modem after change.
         """
         if not isinstance(apn, str) or not apn:
             raise ValueError('Missing APN value')
-        if not isinstance(pdp_type, PdpType):
+        if not isinstance(pdn_type, PdnType):
             raise ValueError('Invalid PDP type')
         cid = kwargs.get('cid', 1)
         reconnect = kwargs.get('reconnect')
@@ -638,14 +638,14 @@ class NbntnModem(AtClient, ABC):
         if reconnect is True:
             if not self.send_command('AT+CFUN=0', timeout=30).ok:
                 _log.error('Disable modem failed')
-        pdp_name = pdp_type.name.replace('_', '-')
+        pdp_name = pdn_type.name.replace('_', '-')
         cmd = f'AT+CGDCONT={cid},"{pdp_name}","{apn}"'
         result = self.send_command(cmd, timeout=10).ok
         if reconnect is True:
             if not self.send_command('AT+CFUN=1', timeout=30).ok:
                 _log.error('Enable modem failed')
             if result and cid == 1:
-                self._pdp_type = pdp_type
+                self._pdn_type = pdn_type
         return result
     
     def get_psm_config(self) -> PsmConfig:
@@ -830,7 +830,7 @@ class NbntnModem(AtClient, ABC):
             cmd += f',{data_type}'
         res = self.send_command(cmd)
         if res.ok:
-            return MoMessage(message, PdpType.NON_IP)
+            return MoMessage(message, PdnType.NON_IP)
         return None
     
     # @abstractmethod
@@ -861,7 +861,7 @@ class NbntnModem(AtClient, ABC):
             _log.error('Invalid URC: %s', urc)
         if not isinstance(payload, bytes) or kwargs.get('raw') is True:
             return payload
-        return MtMessage(payload, transport=PdpType.NON_IP)
+        return MtMessage(payload, transport=PdnType.NON_IP)
     
     # @abstractmethod
     def ping_icmp(self, **kwargs) -> int:

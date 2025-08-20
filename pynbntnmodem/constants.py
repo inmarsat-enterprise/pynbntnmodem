@@ -49,7 +49,7 @@ class ModuleModel(IntEnum):
     NRF9151 = 9   # Nordic Semiconductor nRF9151
 
 
-class PdpType(IntEnum):
+class PdnType(IntEnum):
     """PDP type enumerations for +CGDCONT"""
     IP = 0
     IPV6 = 1

@@ -2,7 +2,7 @@ import logging
 import random
 import time
 import threading
-from typing import Optional, Union, Callable
+from typing import Any, Optional, Union, Callable
 from unittest.mock import create_autospec
 
 import pytest
@@ -14,6 +14,7 @@ from pynbntnmodem import (
     RegInfo,
     SigInfo,
     RadioAccessTechnology,
+    PdnType,
 )
 from pynbntnmodem.ntninit import default_init
 
@@ -35,9 +36,18 @@ def modem():
     if modem is not None:
         modem.disconnect()
 
+# Simulation / mock support
 
 ResponseType = Union[AtResponse, Callable[[str, dict], AtResponse]]
+SubValue = str|Callable[[str, NbntnModem], str]
+cmd_placeholders: dict[str, Union[str, Callable[[str, NbntnModem], str]]] = {
+    '<apn>': lambda cmd, modem: cmd.replace('<apn>', modem.apn),
+    '<pdn_type>': lambda cmd, modem: cmd.replace('<pdn_type>', modem.pdn_type.name.replace('_', '-')),
+}
+
+
 def res_ok(info: Optional[str] = None, ok: bool = True):
+    """Return an AT command response data structure for simulation."""
     return AtResponse(AtErrorCode.OK if ok else AtErrorCode.ERROR, info)
 
 
@@ -56,38 +66,50 @@ def mock_modem():
         
         modem = NbntnModem(apn='viasat.poc')
         modem._is_initialized = True
-        # Replace command keyword substitutions
-        replace_keys = []
-        for cmd in response_map:
-            if any(swap in cmd for swap in ['<pdn_type>', '<apn>']):
-                pdn_type = modem.pdp_type.name.replace('_', '-')
-                newcmd = cmd.replace('<pdn_type>', pdn_type)
-                newcmd = newcmd.replace('<apn>', modem.apn)
-                replace_keys.append({'old': cmd, 'new': newcmd})
-        for r in replace_keys:
-            for map in [response_map, delay_map, urc_map]:
-                if r['old'] in map:
-                    map[r['new']] = map[r['old']]
-                    del map[r['old']]
-
+        
+        def substitute(cmd: str,
+                       modem: NbntnModem,
+                       placeholder_map: dict[str, SubValue],
+                       ) -> str:
+            """Substitutes placeholders in commands for modem attributes."""
+            for k, v in placeholder_map.items():
+                if k in cmd:
+                    if callable(v):
+                        cmd = v(cmd, modem)
+                    else:
+                        cmd = cmd.replace(k, v)
+            return cmd
+        
+        def find_in_map(incoming_cmd: str, command_map: dict[str, Any]) -> Any|None:
+            """Looks up an AT command factoring placeholder substitutions"""
+            if incoming_cmd in command_map:
+                return command_map[incoming_cmd]
+            for template, response in command_map.items():
+                if substitute(template, modem, cmd_placeholders) == incoming_cmd:
+                    return response
+            return None
+        
         def emit_urc(urc: str, delay: float):
+            """Simulates a command-triggered unsolicited result after a delay."""
             def _worker():
                 time.sleep(delay)
                 modem.inject_urc(urc)
             threading.Thread(target=_worker, daemon=True).start()
         
         def send_side_effect(cmd, **kwargs):
-            if cmd in delay_map:
-                time.sleep(delay_map[cmd])
-            if cmd in response_map:
-                resp = response_map[cmd]
-                if callable(resp):
-                    return resp(cmd, kwargs)
-                if cmd in urc_map:
-                    urc, delay = urc_map[cmd]
-                    emit_urc(urc, delay)
-                return response_map[cmd]
-            if cmd in background_commands:
+            """Emulates a response to an AT command."""
+            delay_response = find_in_map(cmd, delay_map)
+            if delay_response is not None:
+                time.sleep(delay_response)
+            response = find_in_map(cmd, response_map)
+            if response is not None:
+                if callable(response):
+                    return response(cmd, kwargs)
+                trigger_urc = find_in_map(cmd, urc_map)
+                if trigger_urc is not None:
+                    emit_urc(*trigger_urc)
+                return response
+            elif cmd in background_commands:
                 return AtResponse(AtErrorCode.OK)
             return AtResponse(AtErrorCode.ERROR)
         
@@ -102,9 +124,10 @@ def mock_modem():
 def test_get_model(mock_modem, modem: NbntnModem|None):  # type: ignore
     if modem is None:
         modem: NbntnModem = mock_modem({
-            'ATI': res_ok('Manufacturer: Murata Manufacturing Co., Ltd\n'
-                        'Model: LBAD0XX1SC-DM\n'
-                        'Revision: RK_03_02_00_00_45021_001'),
+            'ATI': res_ok(
+                'Manufacturer: Murata Manufacturing Co., Ltd'
+                '\nModel: LBAD0XX1SC-DM'
+                '\nRevision: RK_03_02_00_00_45021_001'),
         })
     model = modem.get_model()
     assert isinstance(model, ModuleModel)
@@ -114,7 +137,7 @@ def test_get_model(mock_modem, modem: NbntnModem|None):  # type: ignore
 def test_get_firmware_version(mock_modem, modem: NbntnModem|None):   # type: ignore
     if modem is None:
         modem: NbntnModem = mock_modem({
-            'AT+CGMR': res_ok('RK_03_02_00_00_45021_001'),
+            'AT+CGMR': res_ok('v1.2.3'),
         })
     fwv = modem.firmware_version
     assert fwv != ''
@@ -124,7 +147,7 @@ def test_get_firmware_version(mock_modem, modem: NbntnModem|None):   # type: ign
 def test_get_imei(mock_modem, modem: NbntnModem|None):   # type: ignore
     if modem is None:
         modem: NbntnModem = mock_modem({
-            'AT+CGSN': res_ok('351521108462706'),
+            'AT+CGSN': res_ok('123456789012345'),
         })
     imei = modem.imei
     assert len(imei) >= 15
@@ -196,6 +219,30 @@ def test_urc_trigger(mock_modem, modem: NbntnModem|None):    # type: ignore
     time.sleep(urc_delay + 0.25)
     urc = modem.get_urc()
     assert urc == 'RDY'
+
+
+@pytest.mark.parametrize(
+    'apn,pdn_type,expected_pdn_type',
+    [
+        ('viasat.poc', PdnType.NON_IP, PdnType.NON_IP),
+        ('viasat.ip', PdnType.IP, PdnType.IP),
+    ]
+)
+def test_set_config(mock_modem,
+                    modem: NbntnModem|None,     # type: ignore
+                    apn: str,
+                    pdn_type: PdnType,
+                    expected_pdn_type: PdnType):
+    if modem is None:
+        modem: NbntnModem = mock_modem(
+            response_map = {
+                'AT+CFUN=0': res_ok(),
+                f'AT+CGDCONT=1,"{pdn_type.name.replace("_", "-")}","{apn}"': res_ok(),
+                'AT+CFUN=1': res_ok(),
+            },
+        )
+    assert modem.set_context(apn, pdn_type, reconnect=True)
+    assert modem.pdn_type == expected_pdn_type
 
 
 def test_report_debug(mock_modem, modem: NbntnModem|None, caplog):     # type: ignore
