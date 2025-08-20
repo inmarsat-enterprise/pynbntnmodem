@@ -5,6 +5,7 @@ connection between a mobile device and a mobile network that allows exchange of
 packets.
 """
 from dataclasses import dataclass
+from typing import Optional
 
 from pynbntnmodem.constants import PdpType
 
@@ -15,4 +16,5 @@ class PdpContext:
     id: int = 1   # context ID
     pdp_type: PdpType = PdpType.IP
     apn: str = ''
-    ip: 'str|None' = ''   # the IP address if type is IP and attached
+    ip: Optional[str] = None   # the IP address if type is IP and attached
+    active: bool = False
