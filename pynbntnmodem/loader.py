@@ -119,6 +119,7 @@ def mutate_modem(modem: NbntnModem, **kwargs) -> NbntnModem:
         modem (NbntnModem): The base/unknown modem.
         **module (module): The module containing the subclass python files.
             Downloaded files from GitHub will be stored here.
+        **mixin (NbntnModem): Optional mixin extension subclass to apply.
     
     Returns:
         Subclass of NbntnModem.
@@ -174,7 +175,16 @@ def mutate_modem(modem: NbntnModem, **kwargs) -> NbntnModem:
                 # Disconnect for state prior to mutation
                 if not was_connected:
                     modem.disconnect()
-                modem.__class__ = candidate
+                mixin = kwargs.get('mixin')
+                if mixin and issubclass(mixin, NbntnModem):
+                    Extended = type(
+                        f'Extended{candidate.__name__}',
+                        (candidate, mixin),
+                        {}
+                    )
+                    modem.__class__ = Extended
+                else:
+                    modem.__class__ = candidate
                 modem._post_mutate()
                 return modem
     # Fall-through
