@@ -8,30 +8,31 @@ from typing import Any, Optional
 from pyatcommand import AtClient, AtResponse, AtTimeout
 from pyatcommand.common import dprint
 
-from pynbntnmodem import (
+from .constants import (
+    CeregMode,
     Chipset,
-    EdrxConfig,
     ModuleManufacturer,
     ModuleModel,
+    PdnType,
+    RadioAccessTechnology,
+    RegistrationState,
+    RrcState,
+    SignalLevel,
+    SignalQuality,
+    UrcType,
+)
+from .ntninit import NtnInitSequence, default_init
+from .structures import (
+    EdrxConfig,
     MoMessage,
     MtMessage,
     NtnLocation,
     PdnContext,
-    PdnType,
     PsmConfig,
-    RadioAccessTechnology,
     RegInfo,
-    RegistrationState,
-    RrcState,
     SigInfo,
-    SignalLevel,
-    SignalQuality,
     SocketStatus,
-    UrcType,
-    CeregMode,
 )
-
-from .ntninit import NtnInitSequence, default_init
 from .utils import is_valid_hostname, is_valid_ip
 
 _log = logging.getLogger(__name__)
