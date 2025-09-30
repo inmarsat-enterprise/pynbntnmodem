@@ -1,1 +1,1 @@
-pyatcommand>=0.4
+pyatcommand>=0.5
