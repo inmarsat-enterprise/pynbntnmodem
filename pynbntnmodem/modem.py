@@ -233,26 +233,28 @@ class NbntnModem(AtClient, ABC):
         return self._ntn_initialized
     
     def get_model(self) -> ModuleModel:
-        resp = self.send_command('ATI', timeout=3)
-        if resp.ok and resp.info:
-            if 'quectel' in resp.info.lower():
-                if 'cc660' in resp.info.lower():
+        res = self.send_command('ATI', timeout=3)
+        if res.ok and res.info:
+            if 'quectel' in res.info.lower():
+                if 'cc660' in res.info.lower():
                     return ModuleModel.CC660D
-                if 'bg95' in resp.info.lower():
+                if 'bg95' in res.info.lower():
                     return ModuleModel.BG95S5
-                if 'bg770' in resp.info.lower():
+                if 'bg770' in res.info.lower():
                     return ModuleModel.BG770ASN
-            elif 'murata' in resp.info.lower():
-                if '1sc' in resp.info.lower():
+            elif 'murata' in res.info.lower():
+                if '1sc' in res.info.lower():
                     return ModuleModel.TYPE1SC
-            elif 'HL781' in resp.info:
+            elif 'HL781' in res.info:
                 return ModuleModel.HL781X
-            elif 'telit' in resp.info.lower():
-                if 'ME910G1' in resp.info:
-                    return ModuleModel.ME910G1
-            _log.warning('Unsupported model: %s', resp.info)
-            return ModuleModel.UNKNOWN
-        raise OSError('Unable to get modem information')
+        elif not res.ok:
+            res = self.send_command('AT+CGMM')
+            if res.ok and res.info:
+                if 'nrf9151' in res.info.lower():
+                    return ModuleModel.NRF9151
+        _log.warning('Unable to determine model: %s',
+                     res.info if res.info else 'UNKNOWN')
+        return ModuleModel.UNKNOWN
 
     def get_cme_mode(self) -> int:
         """Get the CME device error response configuration"""
@@ -608,9 +610,9 @@ class NbntnModem(AtClient, ABC):
                     elif i == 3:
                         c.ip = param
                 contexts.append(c)
-        resp = self.send_command('AT+CGACT?', prefix='+CGACT:')
-        if resp.ok and resp.info:
-            context_states = resp.info.split('\n')
+        res = self.send_command('AT+CGACT?', prefix='+CGACT:')
+        if res.ok and res.info:
+            context_states = res.info.split('\n')
             for context_state in context_states:
                 cid, state = context_state.split(',')
                 cid = int(cid)
