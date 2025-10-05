@@ -12,6 +12,7 @@ class ChipsetManufacturer(IntEnum):
     MEDIATEK = 1
     SONYALTAIR = 2
     QUALCOMM = 3
+    NORDIC = 4
 
 
 class Chipset(IntEnum):
@@ -21,6 +22,7 @@ class Chipset(IntEnum):
     MDM9205S = 2   # Qualcomm
     ALT1250 = 3   # Sony/Altair
     QCX212S = 4   # Qualcomm
+    NRF9151 = 5   # Nordic
 
 
 class ModuleManufacturer(IntEnum):
