@@ -275,7 +275,6 @@ class NbntnModem(AtClient, ABC):
         
         Args:
             **timeout (float): Maximum time in seconds to wait for URC.
-            **prefixes (list[str]): Additional URC prefixes to consider.
         
         Returns:
             The awaited URC or an empty string if it timed out.
@@ -801,7 +800,7 @@ class NbntnModem(AtClient, ABC):
         return res.ok
 
     # @abstractmethod
-    def send_message_nidd(self, message: bytes, **kwargs) -> MoMessage|None:
+    def send_message_nidd(self, payload: bytes, **kwargs) -> MoMessage|None:
         """Send a message using Non-IP Data Delivery.
         
         Keyword arguments allows for device-specific parameters.
@@ -822,7 +821,7 @@ class NbntnModem(AtClient, ABC):
         if not res.ok:
             raise NotImplementedError('Requires module-specific subclass')
         _log.debug('Sending NIDD message without confirmation')
-        cmd = f'AT+CSODCP={cid},{len(message)},"{message.hex()}"'
+        cmd = f'AT+CSODCP={cid},{len(payload)},"{payload.hex()}"'
         rai = kwargs.get('rai')
         data_type = kwargs.get('data_type')
         if rai is not None:
@@ -833,11 +832,11 @@ class NbntnModem(AtClient, ABC):
             cmd += f',{data_type}'
         res = self.send_command(cmd)
         if res.ok:
-            return MoMessage(message, PdnType.NON_IP)
+            return MoMessage(payload, PdnType.NON_IP)
         return None
     
     # @abstractmethod
-    def receive_message_nidd(self, urc: str, **kwargs) -> MtMessage|bytes|None:
+    def receive_message_nidd(self, urc: str = '', **kwargs) -> MtMessage|bytes|None:
         """Parses a NIDD URC string to derive the MT/downlink bytes sent.
         
         Args:
@@ -910,7 +909,7 @@ class NbntnModem(AtClient, ABC):
         raise NotImplementedError('Requires module-specific subclass')
     
     # @abstractmethod
-    def send_message_udp(self, message: bytes, **kwargs) -> MoMessage|None:
+    def send_message_udp(self, payload: bytes, **kwargs) -> MoMessage|None:
         """Send a message using UDP transport.
 
         Opens a socket if one does not exist. Socket is left open by default
@@ -933,7 +932,7 @@ class NbntnModem(AtClient, ABC):
         raise NotImplementedError('Requires module-specific subclass')
     
     # @abstractmethod
-    def receive_message_udp(self, **kwargs) -> MtMessage|bytes|None:
+    def receive_message_udp(self, urc: str = '', **kwargs) -> MtMessage|bytes|None:
         """Get MT/downlink data received over UDP.
         
         Args:
