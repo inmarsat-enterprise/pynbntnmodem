@@ -351,7 +351,8 @@ class NbntnModem(AtClient, ABC):
                     step.gpio.callback(step.gpio.duration)
                     time.sleep(step.gpio.duration)
                 continue
-            if (step.cmd is None or (step.res is None and step.urc is None)):
+            invalid = all(x is None for x in (step.res, step.urc, step.timeout))
+            if (step.cmd is None or invalid):
                 _log.warning('Skipping invalid init command (step %d)',
                              sequence_step)
                 continue
@@ -840,8 +841,9 @@ class NbntnModem(AtClient, ABC):
         """Parses a NIDD URC string to derive the MT/downlink bytes sent.
         
         Args:
-            urc (str): The 3GPP standard +CRTDCP unsolicited output
-            **raw (bool): If True returns `bytes`
+            urc (str): Optional URC received for example the 3GPP standard
+                `+CRTDCP:` unsolicited output.
+            **raw (bool): If True returns payload `bytes` only else `MtMessage`.
         
         Returns:
             The payload `bytes` or `MtMessage` metadata with `payload`
@@ -936,10 +938,10 @@ class NbntnModem(AtClient, ABC):
         """Get MT/downlink data received over UDP.
         
         Args:
-            **cid (int): Context/session ID (default 1)
-            **urc (str): URC output including hex payload
-            **size (int): Maximum bytes to read (default 256)
-            **raw (bool): If True returns `bytes` otherwise returns `MtMessage`
+            urc (str): Optional URC received with (meta)data.
+            **cid (int): Context/session ID (default 1).
+            **size (int): Maximum bytes to read (default 256).
+            **raw (bool): If True returns payload `bytes` only else `MtMessage`.
         
         Returns:
             `MtMessage` structure with `payload` and IP address/port, 
